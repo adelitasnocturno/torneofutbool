@@ -4,6 +4,9 @@ import backgroundBg from '../assets/background.jpg';
 import WhatsAppButton from './WhatsAppButton';
 
 const Layout = ({ children }) => {
+    const location = useLocation();
+    const isAdminRoute = location.pathname.startsWith('/admin');
+
     return (
         <div className="min-h-screen relative overflow-x-hidden font-sans text-white">
             {/* Background Image */}
@@ -22,8 +25,8 @@ const Layout = ({ children }) => {
                 {children}
             </div>
 
-            {/* Floating Elements */}
-            <WhatsAppButton />
+            {/* Floating Elements - Hide on Admin Routes */}
+            {!isAdminRoute && <WhatsAppButton />}
         </div>
     );
 };

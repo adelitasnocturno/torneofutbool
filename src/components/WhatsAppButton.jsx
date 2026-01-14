@@ -4,7 +4,7 @@ import { MessageCircle } from 'lucide-react';
 const WhatsAppButton = () => {
     // Replace with the actual phone number (country code + number)
     // Example: 521234567890
-    const phoneNumber = '521234567890';
+    const phoneNumber = '528341752108';
     const message = encodeURIComponent('Hola! Quiero registrar a mi equipo en el Torneo Adelitas Nocturno ⚽');
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
