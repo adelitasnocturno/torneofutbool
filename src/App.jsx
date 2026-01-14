@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import Layout from './components/Layout';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -20,7 +20,7 @@ import './App.css';
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Layout>
         <Routes>
           {/* Public Routes with Navbar */}
@@ -45,7 +45,7 @@ function App() {
           <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
         </Routes>
       </Layout>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 
