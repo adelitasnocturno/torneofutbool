@@ -1,5 +1,7 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import backgroundBg from '../assets/background.jpg';
+import WhatsAppButton from './WhatsAppButton';
 
 const Layout = ({ children }) => {
     return (
@@ -19,6 +21,9 @@ const Layout = ({ children }) => {
             <div className="relative z-10 flex flex-col min-h-screen">
                 {children}
             </div>
+
+            {/* Floating Elements */}
+            <WhatsAppButton />
         </div>
     );
 };
