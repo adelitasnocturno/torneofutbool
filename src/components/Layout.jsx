@@ -14,7 +14,7 @@ const Layout = ({ children }) => {
                 <img
                     src={backgroundBg}
                     alt="Background"
-                    className="w-full h-[100dvh] object-cover object-center"
+                    className="w-full h-screen object-cover object-[center_top]"
                 />
                 {/* Optional overlay to ensure text readability if needed, kept minimal for now as requested "tal cual" */}
                 <div className="absolute inset-0 bg-black/10"></div>
