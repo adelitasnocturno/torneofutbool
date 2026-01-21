@@ -55,45 +55,45 @@ const MatchDetail = () => {
             </div>
 
             {/* Scoreboard Card - Massive & Glass */}
-            <div className="relative w-full bg-[#0f172a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 md:p-10 flex flex-col items-center gap-6 shadow-2xl mb-6 overflow-hidden">
+            <div className="relative w-full bg-[#0f172a]/90 backdrop-blur-2xl border border-white/10 rounded-2xl p-3 md:p-10 flex flex-col items-center gap-6 shadow-2xl mb-6 overflow-hidden">
                 {/* Background FX */}
                 <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a8a]/20 to-transparent pointer-events-none"></div>
 
-                <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center w-full gap-2 md:gap-8">
+                <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center w-full gap-1 md:gap-8">
                     {/* Home Team */}
-                    <div className="flex flex-col items-center gap-3 text-center">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(30,58,138,0.5)]">
-                            <Shield className="text-blue-400 w-10 h-10 md:w-12 md:h-12" />
+                    <div className="flex flex-col items-center gap-2 md:gap-3 text-center min-w-0">
+                        <div className="w-16 h-16 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(30,58,138,0.5)]">
+                            <Shield className="text-blue-400 w-8 h-8 md:w-12 md:h-12" />
                         </div>
-                        <h3 className="text-white font-black text-lg md:text-2xl leading-tight">{match.homeTeam.name}</h3>
+                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.homeTeam.name}</h3>
                     </div>
 
                     {/* Score / VS */}
                     <div className="flex flex-col items-center">
                         {match.status === 'Finalizado' ? (
-                            <div className="flex items-center gap-4">
-                                <span className="text-5xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
+                            <div className="flex items-center gap-2 md:gap-4">
+                                <span className="text-4xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
                                     {match.score.home}
                                 </span>
-                                <span className="text-gray-600 text-4xl">-</span>
-                                <span className="text-5xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
+                                <span className="text-gray-600 text-2xl md:text-4xl">-</span>
+                                <span className="text-4xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
                                     {match.score.away}
                                 </span>
                             </div>
                         ) : (
-                            <span className="text-4xl font-black text-gray-600 tracking-widest">VS</span>
+                            <span className="text-2xl md:text-4xl font-black text-gray-600 tracking-widest">VS</span>
                         )}
-                        <div className={`mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${match.status === 'Finalizado' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                        <div className={`mt-2 px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider border ${match.status === 'Finalizado' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
                             {match.status}
                         </div>
                     </div>
 
                     {/* Away Team */}
-                    <div className="flex flex-col items-center gap-3 text-center">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
-                            <Shield className="text-red-400 w-10 h-10 md:w-12 md:h-12" />
+                    <div className="flex flex-col items-center gap-2 md:gap-3 text-center min-w-0">
+                        <div className="w-16 h-16 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
+                            <Shield className="text-red-400 w-8 h-8 md:w-12 md:h-12" />
                         </div>
-                        <h3 className="text-white font-black text-lg md:text-2xl leading-tight">{match.awayTeam.name}</h3>
+                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.awayTeam.name}</h3>
                     </div>
                 </div>
             </div>
