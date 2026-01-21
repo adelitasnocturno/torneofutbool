@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Bell, ChevronDown, Menu, X } from 'lucide-react';
 import logo from '../assets/logo.png';
+import { useTournament } from '../context/TournamentContext';
 
 const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const { matchDays, currentMatchDayId, setCurrentMatchDayId } = useTournament();
 
     const navItems = [
         { name: 'Inicio', path: '/' },
@@ -42,19 +44,37 @@ const Navbar = () => {
                 {/* Center (Desktop): Jornada Selector */}
                 <div className="hidden md:flex flex-1 max-w-xs mx-4 relative z-10">
                     <div className="relative group w-full">
-                        <button className="w-full bg-gradient-to-b from-gray-100 to-gray-300 hover:to-gray-200 border border-white/40 rounded shadow-md py-1.5 px-4 flex items-center justify-between text-[#1a2c4e] text-sm transition-all duration-300">
-                            <span className="flex items-center gap-2 font-semibold">
-                                <span className="w-4 h-4 rounded-sm bg-[#1a2c4e]/10 flex items-center justify-center text-[10px] grayscale">📅</span>
-                                Jornada actual: <span className="font-black text-[#1a2c4e]">#5</span>
-                            </span>
-                            <ChevronDown className="w-4 h-4 text-[#1a2c4e]/70" />
-                        </button>
+                        {matchDays.length > 0 ? (
+                            <div className="relative">
+                                <select
+                                    value={currentMatchDayId || ''}
+                                    onChange={(e) => setCurrentMatchDayId(Number(e.target.value))}
+                                    className="w-full appearance-none bg-gradient-to-b from-gray-100 to-gray-300 hover:to-gray-200 border border-white/40 rounded shadow-md py-1.5 pl-4 pr-10 text-[#1a2c4e] text-sm font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                >
+                                    {matchDays.map(day => (
+                                        <option key={day.id} value={day.id}>
+                                            {day.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-[#1a2c4e]/70">
+                                    <ChevronDown className="w-4 h-4" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="w-full bg-gray-200/50 border border-white/20 rounded shadow-inner py-1.5 px-4 flex items-center justify-center text-gray-500 text-sm">
+                                <span className="flex items-center gap-2 font-medium italic">
+                                    🚫 Sin jornadas
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Right Actions & Hamburger */}
                 <div className="flex items-center gap-3 relative z-10">
                     <div className="hidden md:flex items-center gap-3">
+                        {/* HIDDEN TEMPORARILY
                         <button className="p-2 rounded-full hover:bg-white/20 transition-colors text-white shadow-sm">
                             <Search className="w-5 h-5 drop-shadow-sm" />
                         </button>
@@ -62,6 +82,7 @@ const Navbar = () => {
                             <Bell className="w-5 h-5 drop-shadow-sm" />
                             <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-[#1f355e] shadow-sm"></span>
                         </button>
+                        */}
                     </div>
 
                     {/* Hamburger Button (Mobile Only) */}
@@ -133,7 +154,9 @@ const Navbar = () => {
 
                         <div className="mt-auto pt-8 border-t border-white/10">
                             <button className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-bold py-3 rounded-lg shadow-lg mb-4 hover:scale-[1.02] transition-transform">
-                                Ver Jornada Actual
+                                {matchDays.length > 0
+                                    ? `Ver ${matchDays.find(d => d.id === currentMatchDayId)?.label || 'Jornada'}`
+                                    : 'Sin Jornadas Disponibles'}
                             </button>
                             <div className="flex justify-center gap-6 text-white/50">
                                 <Search size={24} className="hover:text-white cursor-pointer transition-colors" />

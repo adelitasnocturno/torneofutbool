@@ -18,33 +18,37 @@ import AdminMatches from './pages/AdminMatches';
 import AdminMatchResult from './pages/AdminMatchResult';
 import './App.css';
 
+import { TournamentProvider } from './context/TournamentContext';
+
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          {/* Public Routes with Navbar */}
-          <Route element={<><Navbar /><Outlet /></>}>
-            <Route path="/" element={<Home />} />
-            <Route path="/jornadas" element={<Jornadas />} />
-            <Route path="/jornadas/:id" element={<JornadaDetail />} />
-            <Route path="/match/:id" element={<MatchDetail />} />
-            <Route path="/posiciones" element={<Posiciones />} />
-            <Route path="/goleo" element={<Goleo />} />
-            <Route path="/equipos" element={<Equipos />} />
-            <Route path="/equipo/:id" element={<EquipoDetail />} />
-          </Route>
+      <TournamentProvider>
+        <Layout>
+          <Routes>
+            {/* Public Routes with Navbar */}
+            <Route element={<><Navbar /><Outlet /></>}>
+              <Route path="/" element={<Home />} />
+              <Route path="/jornadas" element={<Jornadas />} />
+              <Route path="/jornadas/:id" element={<JornadaDetail />} />
+              <Route path="/match/:id" element={<MatchDetail />} />
+              <Route path="/posiciones" element={<Posiciones />} />
+              <Route path="/goleo" element={<Goleo />} />
+              <Route path="/equipos" element={<Equipos />} />
+              <Route path="/equipo/:id" element={<EquipoDetail />} />
+            </Route>
 
-          {/* Admin Routes (No Navbar) */}
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/equipos" element={<AdminTeams />} />
-          <Route path="/admin/equipos/:id/jugadores" element={<AdminPlayers />} />
-          <Route path="/admin/crear-jornada" element={<AdminCreateMatchday />} />
-          <Route path="/admin/partidos" element={<AdminMatches />} />
-          <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
-        </Routes>
-      </Layout>
+            {/* Admin Routes (No Navbar) */}
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/equipos" element={<AdminTeams />} />
+            <Route path="/admin/equipos/:id/jugadores" element={<AdminPlayers />} />
+            <Route path="/admin/crear-jornada" element={<AdminCreateMatchday />} />
+            <Route path="/admin/partidos" element={<AdminMatches />} />
+            <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
+          </Routes>
+        </Layout>
+      </TournamentProvider>
     </BrowserRouter>
   );
 }

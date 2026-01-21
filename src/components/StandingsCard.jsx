@@ -1,19 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
 
 const StandingsCard = () => {
     const navigate = useNavigate();
-    // Default to Dragones (id 3) as per original design, or use state to track
-    const [selectedId, setSelectedId] = React.useState(3);
+    const { tournamentId } = useTournament();
+    const [standings, setStandings] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedId, setSelectedId] = useState(null);
 
-    const standings = [
-        { id: 1, rank: 1, team: 'Tigres', pj: 5, dg: '+9', pts: 15 },
-        { id: 2, rank: 2, team: 'Atlético', pj: 5, dg: '+7', pts: 12 },
-        { id: 3, rank: 3, team: 'Dragones', pj: 5, dg: '+7', pts: 12 },
-        { id: 4, rank: 4, team: 'Deportivo', pj: 5, dg: '+5', pts: 10 },
-        { id: 5, rank: 5, team: 'Estrella', pj: 5, dg: '-1', pts: 10 },
-    ];
+    useEffect(() => {
+        const fetchStandings = async () => {
+            try {
+                const response = await client.get(`/tournaments/${tournamentId}/standings`);
+                // Take top 5 for the card
+                const data = response.data;
+                setStandings(data.slice(0, 5));
+                if (data.length > 0) {
+                    setSelectedId(data[0].teamId); // Default to leader
+                }
+            } catch (error) {
+                console.error("Error fetching standings:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (tournamentId) {
+            fetchStandings();
+        }
+    }, [tournamentId]);
+
+    if (loading) {
+        return <div className="p-4 text-center text-white/50">Cargando tabla...</div>;
+    }
+
+    if (standings.length === 0) {
+        return (
+            <div className="w-full h-full bg-gradient-to-br from-[#1e3a8a]/40 to-[#1e293b]/90 backdrop-blur-md rounded-xl overflow-hidden border border-blue-400/30 shadow-lg flex flex-col justify-center items-center p-6 text-center">
+                <p className="text-white/70 font-medium">Aún no hay tabla de posiciones.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full bg-gradient-to-br from-[#1e3a8a]/40 to-[#1e293b]/90 backdrop-blur-md rounded-xl overflow-hidden border border-blue-400/30 shadow-lg flex flex-col">
@@ -33,12 +63,12 @@ const StandingsCard = () => {
 
             {/* Rows */}
             <div className="flex-1 flex flex-col">
-                {standings.map((row) => {
-                    const isSelected = selectedId === row.id;
+                {standings.map((row, index) => {
+                    const isSelected = selectedId === row.teamId;
                     return (
                         <div
-                            key={row.id}
-                            onClick={() => setSelectedId(row.id)}
+                            key={row.teamId}
+                            onClick={() => setSelectedId(row.teamId)}
                             className={`flex items-center py-2 px-4 text-sm border-b border-white/5 last:border-0 cursor-pointer transition-all duration-300 ${isSelected
                                 ? 'bg-gradient-to-r from-yellow-600/80 to-yellow-500/20 text-white font-semibold relative overflow-hidden scale-[1.02] z-10 border-t border-b border-yellow-400/30 shadow-[0_0_15px_rgba(234,179,8,0.2)]'
                                 : 'text-gray-200 hover:bg-white/5'
@@ -47,11 +77,11 @@ const StandingsCard = () => {
                             {isSelected && (
                                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)] animate-pulse"></div>
                             )}
-                            <div className="w-8 font-medium">{row.rank}.</div>
-                            <div className="flex-1 font-medium">{row.team}</div>
-                            <div className="w-8 text-center text-gray-400">{row.pj}</div>
-                            <div className="w-8 text-center font-bold text-gray-300">{row.dg}</div>
-                            <div className={`w-8 text-center font-black ${isSelected ? 'text-yellow-300' : 'text-white'}`}>{row.pts}</div>
+                            <div className="w-8 font-medium">{index + 1}.</div>
+                            <div className="flex-1 font-medium">{row.teamName}</div>
+                            <div className="w-8 text-center text-gray-400">{row.matchesPlayed}</div>
+                            <div className="w-8 text-center font-bold text-gray-300">{row.goalDifference > 0 ? '+' + row.goalDifference : row.goalDifference}</div>
+                            <div className={`w-8 text-center font-black ${isSelected ? 'text-yellow-300' : 'text-white'}`}>{row.points}</div>
                         </div>
                     );
                 })}
