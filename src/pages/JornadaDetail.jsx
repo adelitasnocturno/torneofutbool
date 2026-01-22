@@ -1,50 +1,35 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, Clock, Shield, Calendar } from 'lucide-react';
+import client from '../api/client';
 
 const JornadaDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [matches, setMatches] = useState([]);
+    const [loading, setLoading] = useState(true);
+    // Ideally fetch these details too or pass via state, for now we can infer or leave generic
+    const [jornadaLabel, setJornadaLabel] = useState(`Jornada ${id}`);
 
-    // Mock Data based on ID
-    const jornadaInfo = {
-        name: `Jornada ${id}`,
-        date: 'Martes 10/01/2026',
-        status: 'Finalizada'
-    };
+    useEffect(() => {
+        const fetchMatches = async () => {
+            try {
+                const response = await client.get(`/matchdays/${id}/matches`);
+                setMatches(response.data);
+                // Try to guess a label if matches exist and have metadata, OR fetch matchday details in parallel
+            } catch (error) {
+                console.error("Error fetching detailed matches:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchMatches();
+    }, [id]);
 
-    const matches = [
-        {
-            id: 101,
-            time: '19:00',
-            court: 'Cancha 1',
-            status: 'Finalizado',
-            homeTeam: 'Las Adelitas',
-            awayTeam: 'Cobras FC',
-            score: { home: 3, away: 1 }
-        },
-        {
-            id: 102,
-            time: '20:00',
-            court: 'Cancha 2',
-            status: 'Finalizado',
-            homeTeam: 'Guerreras',
-            awayTeam: 'Águilas',
-            score: { home: 2, away: 2 }
-        },
-        {
-            id: 103,
-            time: '21:00',
-            court: 'Cancha 1',
-            status: 'Programada',
-            homeTeam: 'Fénix',
-            awayTeam: 'Leonesses',
-            score: null
-        }
-    ];
+    if (loading) return <div className="text-white text-center mt-10">Cargando partidos...</div>;
 
     return (
-        <div className="w-full min-h-screen pb-24">
+        <div className="w-full min-h-screen pb-24 px-4">
             {/* Header Section - Wrapped in Glass for Contrast */}
             <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 rounded-xl p-6 mb-6 relative overflow-hidden shadow-2xl mt-4">
                 {/* Decorative Glow */}
@@ -60,83 +45,88 @@ const JornadaDetail = () => {
 
                 <div className="relative z-10 flex flex-col gap-1">
                     <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">
-                        {jornadaInfo.name}
+                        {jornadaLabel}
                     </h2>
                     <div className="flex items-center gap-2 text-blue-200/90 font-medium text-lg">
                         <Calendar size={20} className="text-yellow-400" />
-                        {jornadaInfo.date}
+                        {/* Show generic or first match date as proxy */}
+                        {matches.length > 0 && matches[0].scheduledTime ? matches[0].scheduledTime.split('T')[0] : 'Fecha no disponible'}
                     </div>
                 </div>
             </div>
 
             {/* Match List */}
             <div className="flex flex-col gap-4">
-                {matches.map((match) => (
-                    <div
-                        key={match.id}
-                        className="group relative w-full bg-[#0f172a]/80 backdrop-blur-2xl border border-white/10 rounded-xl p-4 cursor-pointer hover:border-yellow-400/50 hover:bg-[#1e293b]/90 transition-all duration-300 overflow-hidden shadow-xl"
-                        onClick={() => navigate(`/match/${match.id}`)}
-                    >
-                        {/* Hover Glow Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/0 to-yellow-500/0 group-hover:from-yellow-500/5 group-hover:via-yellow-500/10 group-hover:to-transparent transition-all duration-500"></div>
+                {matches.length === 0 ? (
+                    <div className="text-center text-white/50 py-10">No hay partidos en esta jornada.</div>
+                ) : (
+                    matches.map((match) => (
+                        <div
+                            key={match.id}
+                            className="group relative w-full bg-[#0f172a]/80 backdrop-blur-2xl border border-white/10 rounded-xl p-4 cursor-pointer hover:border-yellow-400/50 hover:bg-[#1e293b]/90 transition-all duration-300 overflow-hidden shadow-xl"
+                            onClick={() => navigate(`/match/${match.id}`)}
+                        >
+                            {/* Hover Glow Effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/0 to-yellow-500/0 group-hover:from-yellow-500/5 group-hover:via-yellow-500/10 group-hover:to-transparent transition-all duration-500"></div>
 
-                        {/* Card Content - Grid Layout */}
-                        <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                            {/* Card Content - Grid Layout */}
+                            <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
 
-                            {/* Home Team (Left) */}
-                            <div className="flex flex-col items-center gap-2 text-center">
-                                <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                    <Shield className="text-blue-400" size={28} />
-                                </div>
-                                <span className="text-white font-bold text-sm md:text-base leading-tight">
-                                    {match.homeTeam}
-                                </span>
-                            </div>
-
-                            {/* Center Info (Score or Time) */}
-                            <div className="flex flex-col items-center justify-center min-w-[80px]">
-                                {match.status === 'Finalizado' ? (
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
-                                            {match.score.home}
-                                        </span>
-                                        <span className="text-gray-500 font-bold">-</span>
-                                        <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
-                                            {match.score.away}
-                                        </span>
+                                {/* Home Team (Left) */}
+                                <div className="flex flex-col items-center gap-2 text-center">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <Shield className="text-blue-400" size={28} />
                                     </div>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <div className="bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30 flex items-center gap-1">
-                                            <Clock size={12} />
-                                            {match.time}
+                                    <span className="text-white font-bold text-sm md:text-base leading-tight">
+                                        {match.homeTeam.name}
+                                    </span>
+                                </div>
+
+                                {/* Center Info (Score or Time) */}
+                                <div className="flex flex-col items-center justify-center min-w-[80px]">
+                                    {match.status === 'FINAL' ? (
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
+                                                {match.homeScore}
+                                            </span>
+                                            <span className="text-gray-500 font-bold">-</span>
+                                            <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
+                                                {match.awayScore}
+                                            </span>
                                         </div>
-                                        <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                                            <MapPin size={10} />
-                                            {match.court}
-                                        </span>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className="bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30 flex items-center gap-1">
+                                                <Clock size={12} />
+                                                {match.scheduledTime ? match.scheduledTime.substring(11, 16) : 'TBD'}
+                                            </div>
+                                            <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                                <MapPin size={10} />
+                                                {match.venue || 'Campo 1'}
+                                            </span>
+                                        </div>
+                                    )}
 
-                                <span className={`mt-2 text-[10px] uppercase tracking-widest font-bold 
-                                    ${match.status === 'Finalizado' ? 'text-green-400' : 'text-gray-400'}`}>
-                                    {match.status}
-                                </span>
-                            </div>
-
-                            {/* Away Team (Right) */}
-                            <div className="flex flex-col items-center gap-2 text-center">
-                                <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                    <Shield className="text-red-400" size={28} />
+                                    <span className={`mt-2 text-[10px] uppercase tracking-widest font-bold 
+                                        ${match.status === 'FINAL' ? 'text-green-400' : 'text-gray-400'}`}>
+                                        {match.status === 'FINAL' ? 'Finalizado' : 'Programado'}
+                                    </span>
                                 </div>
-                                <span className="text-white font-bold text-sm md:text-base leading-tight">
-                                    {match.awayTeam}
-                                </span>
-                            </div>
 
+                                {/* Away Team (Right) */}
+                                <div className="flex flex-col items-center gap-2 text-center">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                        <Shield className="text-red-400" size={28} />
+                                    </div>
+                                    <span className="text-white font-bold text-sm md:text-base leading-tight">
+                                        {match.awayTeam.name}
+                                    </span>
+                                </div>
+
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );

@@ -1,29 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, ChevronRight, CheckCircle2, Clock } from 'lucide-react';
+import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
 
 const Jornadas = () => {
     const navigate = useNavigate();
+    const { tournamentId } = useTournament();
     const [filter, setFilter] = useState('Todas'); // Todas, Finalizadas, Pendientes
+    const [matchDays, setMatchDays] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Mock Data for Match Days
-    const matchDays = [
-        { id: 1, name: 'Jornada 1', date: 'Martes 10/01/2026', status: 'Finalizada', matches: 4 },
-        { id: 2, name: 'Jornada 2', date: 'Jueves 12/01/2026', status: 'Finalizada', matches: 4 },
-        { id: 3, name: 'Jornada 3', date: 'Martes 17/01/2026', status: 'Finalizada', matches: 4 },
-        { id: 4, name: 'Jornada 4', date: 'Jueves 19/01/2026', status: 'Finalizada', matches: 4 },
-        { id: 5, name: 'Jornada 5', date: 'Martes 24/01/2026', status: 'Programada', matches: 4 },
-        { id: 6, name: 'Jornada 6', date: 'Jueves 26/01/2026', status: 'Programada', matches: 4 },
-    ];
+    useEffect(() => {
+        const fetchMatchDays = async () => {
+            try {
+                const response = await client.get(`/tournaments/${tournamentId}/matchdays`);
+                // Process data to add 'status' based on date logic or backend data
+                // Assuming backend returns { id, label, date (ISO or string) }
+                // We'll infer status: If date is past -> Finalizada, else Programada
+                // Note: Real date comparison requires standardized date format from backend.
+                // For now, let's treat all as "Programada" unless logic is added, or randomly assign for demo if needed.
+                // Update: Let's assume passed dates are 'Finalizada'.
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const processedDays = response.data.map(day => {
+                    // Parse date provided by backend (e.g., '2026-01-10')
+                    // If format is different, we need to adjust parsing
+                    const dayDate = new Date(day.date);
+                    const isPast = dayDate < today;
+
+                    return {
+                        ...day,
+                        status: isPast ? 'Finalizada' : 'Programada',
+                        matchesCount: 0 // We don't have this count from this endpoint yet, showing 0 or hiding
+                    };
+                });
+
+                setMatchDays(processedDays);
+            } catch (error) {
+                console.error("Error fetching matchdays:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (tournamentId) {
+            fetchMatchDays();
+        }
+    }, [tournamentId]);
 
     const filteredDays = matchDays.filter(day => {
         if (filter === 'Todas') return true;
         if (filter === 'Pendientes') return day.status === 'Programada';
-        return day.status === filter;
+        return day.status === 'Finalizada'; // Match 'Finalizadas'
     });
 
+    if (loading) return <div className="text-white text-center mt-10">Cargando jornadas...</div>;
+
     return (
-        <div className="w-full h-full flex flex-col gap-6 pb-24">
+        <div className="w-full h-full flex flex-col gap-6 pb-24 px-4">
             {/* Header Section */}
             <div className="flex flex-col gap-2 pt-6">
                 <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-md">
@@ -51,52 +88,60 @@ const Jornadas = () => {
 
             {/* Match Days List */}
             <div className="flex flex-col gap-4">
-                {filteredDays.map((day) => (
-                    <div
-                        key={day.id}
-                        onClick={() => navigate(`/jornadas/${day.id}`)}
-                        className="group relative w-full bg-[#0f172a]/80 backdrop-blur-2xl border border-white/10 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-yellow-400/50 hover:bg-[#1e293b]/90 transition-all duration-300 overflow-hidden shadow-xl"
-                    >
-                        {/* Hover Glow Effect */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/0 to-yellow-500/0 group-hover:from-yellow-500/5 group-hover:via-yellow-500/10 group-hover:to-transparent transition-all duration-500"></div>
-
-                        {/* Left Info: Date & Name */}
-                        <div className="flex items-center gap-4 relative z-10">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border border-white/10 shadow-inner
-                                ${day.status === 'Finalizada' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}
-                            `}>
-                                <Calendar size={20} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-white font-bold text-lg leading-tight group-hover:text-yellow-400 transition-colors">
-                                    {day.name}
-                                </span>
-                                <span className="text-sm text-blue-200/80 font-medium">
-                                    {day.date}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Right Info: Status & Matches */}
-                        <div className="flex items-center gap-4 relative z-10">
-                            <div className="flex flex-col items-end gap-1">
-                                <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border
-                                    ${day.status === 'Finalizada'
-                                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                        : 'bg-blue-500/20 text-blue-300 border-blue-500/30'}
-                                `}>
-                                    {day.status === 'Finalizada' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                                    {day.status}
-                                </div>
-                                <span className="text-xs text-gray-500 font-medium tracking-wide">
-                                    {day.matches} Partidos
-                                </span>
-                            </div>
-
-                            <ChevronRight className="text-gray-600 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all duration-300" />
-                        </div>
+                {filteredDays.length === 0 ? (
+                    <div className="text-center text-white/50 py-10">
+                        No hay jornadas {filter !== 'Todas' ? filter.toLowerCase() : ''}.
                     </div>
-                ))}
+                ) : (
+                    filteredDays.map((day) => (
+                        <div
+                            key={day.id}
+                            onClick={() => navigate(`/jornadas/${day.id}`)}
+                            className="group relative w-full bg-[#0f172a]/80 backdrop-blur-2xl border border-white/10 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-yellow-400/50 hover:bg-[#1e293b]/90 transition-all duration-300 overflow-hidden shadow-xl"
+                        >
+                            {/* Hover Glow Effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/0 to-yellow-500/0 group-hover:from-yellow-500/5 group-hover:via-yellow-500/10 group-hover:to-transparent transition-all duration-500"></div>
+
+                            {/* Left Info: Date & Name */}
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border border-white/10 shadow-inner
+                                    ${day.status === 'Finalizada' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}
+                                `}>
+                                    <Calendar size={20} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-white font-bold text-lg leading-tight group-hover:text-yellow-400 transition-colors">
+                                        {day.label}
+                                    </span>
+                                    <span className="text-sm text-blue-200/80 font-medium">
+                                        {/* Display date nicely if possible */}
+                                        {day.date}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Right Info: Status & Matches */}
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border
+                                        ${day.status === 'Finalizada'
+                                            ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                            : 'bg-blue-500/20 text-blue-300 border-blue-500/30'}
+                                    `}>
+                                        {day.status === 'Finalizada' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                                        {day.status}
+                                    </div>
+                                    {/* Only show matches count if we have it, otherwise hide or fetching logic needed */}
+                                    {/* <span className="text-xs text-gray-500 font-medium tracking-wide">
+                                        {day.matchesCount} Partidos
+                                    </span> */}
+                                </div>
+
+                                <ChevronRight className="text-gray-600 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all duration-300" />
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
