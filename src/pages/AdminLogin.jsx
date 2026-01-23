@@ -3,18 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, User, ChevronRight } from 'lucide-react';
 import logo from '../assets/logo.png';
 
+import { useAuth } from '../context/AuthContext';
+
 const AdminLogin = () => {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
         setCredentials({ ...credentials, [e.target.name]: e.target.value });
+        setError('');
     };
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        // Direct navigation for prototype
-        navigate('/admin/dashboard');
+        setLoading(true);
+        try {
+            await login(credentials.username, credentials.password);
+            navigate('/admin/dashboard');
+        } catch (err) {
+            setError('Usuario o contraseña incorrectos');
+            setLoading(false);
+        }
     };
 
     return (
@@ -41,6 +53,13 @@ const AdminLogin = () => {
                         <p className="text-blue-200/60 text-sm font-medium">Torneo Adelitas Nocturno</p>
                     </div>
                 </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-4 bg-red-500/10 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm font-medium text-center">
+                        {error}
+                    </div>
+                )}
 
                 {/* Form */}
                 <form onSubmit={handleLogin} className="flex flex-col gap-5 relative z-10">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -11,11 +11,35 @@ import {
     Trophy
 } from 'lucide-react';
 import logo from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
+import client from '../api/client';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
+    const [stats, setStats] = useState({
+        totalTeams: 0,
+        currentMatchDay: 'Cargando...',
+        matchesPlayed: 0,
+        totalGoals: 0
+    });
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await client.get('/stats/dashboard');
+                // Maps backend DTO: { totalTeams, currentMatchDay, matchesPlayed, totalGoals }
+                setStats(response.data);
+            } catch (error) {
+                console.error("Error fetching dashboard stats:", error);
+                setStats(prev => ({ ...prev, currentMatchDay: 'Sin datos' }));
+            }
+        };
+        fetchStats();
+    }, []);
 
     const handleLogout = () => {
+        logout();
         navigate('/admin');
     };
 
@@ -84,20 +108,22 @@ const AdminDashboard = () => {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <span className="text-gray-400 text-xs uppercase font-bold">Equipos</span>
-                            <div className="text-2xl font-black text-white mt-1">12</div>
+                            <span className="text-gray-400 text-[10px] md:text-xs uppercase font-bold">Equipos</span>
+                            <div className="text-lg md:text-2xl font-black text-white mt-1 truncate">{stats.totalTeams}</div>
                         </div>
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <span className="text-gray-400 text-xs uppercase font-bold">Jornada Actual</span>
-                            <div className="text-2xl font-black text-yellow-400 mt-1">#5</div>
+                            <span className="text-gray-400 text-[10px] md:text-xs uppercase font-bold">Jornada Actual</span>
+                            <div className="text-lg md:text-2xl font-black text-yellow-400 mt-1 truncate" title={stats.currentMatchDay}>
+                                {stats.currentMatchDay}
+                            </div>
                         </div>
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <span className="text-gray-400 text-xs uppercase font-bold">Partidos Jugados</span>
-                            <div className="text-2xl font-black text-white mt-1">24</div>
+                            <span className="text-gray-400 text-[10px] md:text-xs uppercase font-bold">Partidos</span>
+                            <div className="text-lg md:text-2xl font-black text-white mt-1 truncate">{stats.matchesPlayed}</div>
                         </div>
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <span className="text-gray-400 text-xs uppercase font-bold">Goles Totales</span>
-                            <div className="text-2xl font-black text-white mt-1">86</div>
+                            <span className="text-gray-400 text-[10px] md:text-xs uppercase font-bold">Goles</span>
+                            <div className="text-lg md:text-2xl font-black text-white mt-1 truncate">{stats.totalGoals}</div>
                         </div>
                     </div>
                 </div>

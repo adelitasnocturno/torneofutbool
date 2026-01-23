@@ -19,36 +19,44 @@ import AdminMatchResult from './pages/AdminMatchResult';
 import './App.css';
 
 import { TournamentProvider } from './context/TournamentContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
     <BrowserRouter>
-      <TournamentProvider>
-        <Layout>
-          <Routes>
-            {/* Public Routes with Navbar */}
-            <Route element={<><Navbar /><Outlet /></>}>
-              <Route path="/" element={<Home />} />
-              <Route path="/jornadas" element={<Jornadas />} />
-              <Route path="/jornadas/:id" element={<JornadaDetail />} />
-              <Route path="/match/:id" element={<MatchDetail />} />
-              <Route path="/posiciones" element={<Posiciones />} />
-              <Route path="/goleo" element={<Goleo />} />
-              <Route path="/equipos" element={<Equipos />} />
-              <Route path="/equipo/:id" element={<EquipoDetail />} />
-            </Route>
+      <AuthProvider>
+        <TournamentProvider>
+          <Layout>
+            <Routes>
+              {/* Public Routes with Navbar */}
+              <Route element={<><Navbar /><Outlet /></>}>
+                <Route path="/" element={<Home />} />
+                <Route path="/jornadas" element={<Jornadas />} />
+                <Route path="/jornadas/:id" element={<JornadaDetail />} />
+                <Route path="/match/:id" element={<MatchDetail />} />
+                <Route path="/posiciones" element={<Posiciones />} />
+                <Route path="/goleo" element={<Goleo />} />
+                <Route path="/equipos" element={<Equipos />} />
+                <Route path="/equipo/:id" element={<EquipoDetail />} />
+              </Route>
 
-            {/* Admin Routes (No Navbar) */}
-            <Route path="/admin" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/equipos" element={<AdminTeams />} />
-            <Route path="/admin/equipos/:id/jugadores" element={<AdminPlayers />} />
-            <Route path="/admin/crear-jornada" element={<AdminCreateMatchday />} />
-            <Route path="/admin/partidos" element={<AdminMatches />} />
-            <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
-          </Routes>
-        </Layout>
-      </TournamentProvider>
+              {/* Admin Login (Public) */}
+              <Route path="/admin" element={<AdminLogin />} />
+
+              {/* Admin Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/equipos" element={<AdminTeams />} />
+                <Route path="/admin/equipos/:id/jugadores" element={<AdminPlayers />} />
+                <Route path="/admin/crear-jornada" element={<AdminCreateMatchday />} />
+                <Route path="/admin/partidos" element={<AdminMatches />} />
+                <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
+              </Route>
+            </Routes>
+          </Layout>
+        </TournamentProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
