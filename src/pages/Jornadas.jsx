@@ -22,19 +22,18 @@ const Jornadas = () => {
                 // For now, let's treat all as "Programada" unless logic is added, or randomly assign for demo if needed.
                 // Update: Let's assume passed dates are 'Finalizada'.
 
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
                 const processedDays = response.data.map(day => {
-                    // Parse date provided by backend (e.g., '2026-01-10')
-                    // If format is different, we need to adjust parsing
-                    const dayDate = new Date(day.date);
-                    const isPast = dayDate < today;
+                    // Normalize date handling using string comparison for "YYYY-MM-DD"
+                    // This handles status correctly: Past = Finalizada, Today/Future = Programada
+                    const today = new Date();
+                    const localToday = today.toLocaleDateString('en-CA'); // Returns "YYYY-MM-DD" in local time
+
+                    const isPast = day.date < localToday;
 
                     return {
                         ...day,
                         status: isPast ? 'Finalizada' : 'Programada',
-                        matchesCount: 0 // We don't have this count from this endpoint yet, showing 0 or hiding
+                        matchesCount: 0
                     };
                 });
 

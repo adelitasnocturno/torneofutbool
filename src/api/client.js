@@ -11,8 +11,12 @@ const client = axios.create({
 client.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
+        console.log('Intercepting request to:', config.url);
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
+            console.log('Token attached:', token.substring(0, 10) + '...');
+        } else {
+            console.warn('No token found in localStorage');
         }
         return config;
     },

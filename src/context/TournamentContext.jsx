@@ -22,9 +22,18 @@ export const TournamentProvider = ({ children }) => {
                 // For simplicity, let's select the last one if available, or the first one.
                 // Better logic: Select the one closest to today?
                 if (days.length > 0) {
-                    // Auto-select the last created one tailored for "latest updates", or just the first one.
-                    // Let's just default to the last one for now as it's likely the "current" one in a sequence.
-                    setCurrentMatchDayId(days[days.length - 1].id);
+                    // Logic: Find the first matchday that is Today or Future
+                    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+                    // Assuming days are already sorted by date from backend (OrderByDateAsc)
+                    const upcomingOrToday = days.find(d => d.date >= today);
+
+                    if (upcomingOrToday) {
+                        setCurrentMatchDayId(upcomingOrToday.id);
+                    } else {
+                        // If all are in the past, show the last one (most recent past)
+                        setCurrentMatchDayId(days[days.length - 1].id);
+                    }
                 } else {
                     setCurrentMatchDayId(null);
                 }

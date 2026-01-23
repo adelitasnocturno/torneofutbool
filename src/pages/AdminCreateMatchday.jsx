@@ -10,14 +10,12 @@ import {
     CheckCircle
 } from 'lucide-react';
 
+import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
+
 const AdminCreateMatchday = () => {
     const navigate = useNavigate();
-
-    // Mock Existing Matchdays for Validation
-    const [existingMatchdays] = useState([
-        { date: '2023-11-14', label: 'Jornada 1' },
-        { date: '2023-11-21', label: 'Jornada 2' },
-    ]);
+    const { tournamentId } = useTournament();
 
     const [formData, setFormData] = useState({
         date: '',
@@ -26,26 +24,39 @@ const AdminCreateMatchday = () => {
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess(false);
+        setIsSubmitting(true);
 
-        // Validation: Duplicate Date
-        if (existingMatchdays.some(m => m.date === formData.date)) {
-            setError('Ya existe una jornada registrada para esta fecha.');
-            return;
+        try {
+            await client.post('/matchdays', {
+                tournament: { id: tournamentId },
+                date: formData.date,
+                label: formData.label
+            });
+
+            setSuccess(true);
+            setTimeout(() => {
+                navigate('/admin/dashboard');
+            }, 1500);
+
+        } catch (err) {
+            console.error("Error creating matchday:", err);
+            // Check for specific error status if backend provides it, otherwise generic
+            if (err.response && (err.response.status === 409 || err.response.status === 500)) {
+                // Assuming 500/409 could indicate duplicate based on the UniqueConstraint
+                // Ideally backend returns specific message, but we can infer duplicate date
+                setError('Error: Es probable que ya exista una jornada en esta fecha.');
+            } else {
+                setError('Hubo un error al crear la jornada. Inténtalo de nuevo.');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
-
-        // Mock Success
-        console.log('Creating matchday:', formData);
-        setSuccess(true);
-        // Reset form after short delay or navigate? 
-        // For UX, we show success message then can navigate back or clear.
-        setTimeout(() => {
-            navigate('/admin/dashboard');
-        }, 2000);
     };
 
     return (

@@ -15,36 +15,65 @@ import {
     Shield,
     Trophy
 } from 'lucide-react';
+import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
 
 const AdminMatches = () => {
     const navigate = useNavigate();
 
-    // Mock Data
-    const matchdays = [
-        { id: 1, label: 'Jornada 1 - 14 Nov' },
-        { id: 2, label: 'Jornada 2 - 21 Nov' },
-        { id: 3, label: 'Jornada 3 - 28 Nov' },
-    ];
+    const { tournamentId } = useTournament();
 
-    const teams = [
-        { id: 1, name: 'Tigres' },
-        { id: 2, name: 'Atlético' },
-        { id: 3, name: 'Dragones' },
-        { id: 4, name: 'Deportivo' },
-        { id: 5, name: 'Estrella' },
-        { id: 6, name: 'Lobos FC' },
-    ];
-
-    const [matches, setMatches] = useState([
-        { id: 1, matchdayId: 1, local: 1, visitor: 2, time: '20:00', court: 'Cancha 1' },
-        { id: 2, matchdayId: 1, local: 3, visitor: 4, time: '21:00', court: 'Cancha 2' },
-    ]);
+    // Data States
+    const [matchdays, setMatchdays] = useState([]);
+    const [teams, setTeams] = useState([]);
+    const [matches, setMatches] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // UI States
-    const [selectedMatchday, setSelectedMatchday] = useState(matchdays[0].id);
+    const [selectedMatchday, setSelectedMatchday] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMatch, setEditingMatch] = useState(null);
     const [formData, setFormData] = useState({ local: '', visitor: '', time: '', court: '' });
+
+    // Fetch MatchDays and Teams on load
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            if (!tournamentId) return;
+            try {
+                const [matchdaysRes, teamsRes] = await Promise.all([
+                    client.get(`/tournaments/${tournamentId}/matchdays`),
+                    client.get(`/tournaments/${tournamentId}/teams`)
+                ]);
+                setMatchdays(matchdaysRes.data);
+                setTeams(teamsRes.data);
+
+                // Select first matchday by default if available
+                if (matchdaysRes.data.length > 0) {
+                    setSelectedMatchday(matchdaysRes.data[0].id);
+                }
+            } catch (err) {
+                console.error("Error loading initial data:", err);
+                setError("No se pudieron cargar las jornadas o equipos.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchInitialData();
+    }, [tournamentId]);
+
+    // Fetch Matches when selectedMatchday changes
+    useEffect(() => {
+        const fetchMatches = async () => {
+            if (!selectedMatchday) return;
+            try {
+                const response = await client.get(`/matchdays/${selectedMatchday}/matches`);
+                setMatches(response.data);
+            } catch (err) {
+                console.error("Error loading matches:", err);
+            }
+        };
+        fetchMatches();
+    }, [selectedMatchday]);
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -62,10 +91,10 @@ const AdminMatches = () => {
         if (match) {
             setEditingMatch(match);
             setFormData({
-                local: match.local,
-                visitor: match.visitor,
-                time: match.time,
-                court: match.court
+                local: match.homeTeam.id,
+                visitor: match.awayTeam.id,
+                time: match.scheduledTime ? match.scheduledTime.substring(0, 5) : '',
+                court: match.venue
             });
         } else {
             setEditingMatch(null);
@@ -74,6 +103,7 @@ const AdminMatches = () => {
         setIsModalOpen(true);
     };
 
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingMatch(null);
@@ -81,7 +111,7 @@ const AdminMatches = () => {
         setError('');
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
 
         // Validation: Local != Visitor
@@ -90,17 +120,31 @@ const AdminMatches = () => {
             return;
         }
 
-        if (editingMatch) {
-            setMatches(matches.map(m => m.id === editingMatch.id ? { ...m, ...formData } : m));
-        } else {
-            const newMatch = {
-                id: Date.now(),
-                matchdayId: parseInt(selectedMatchday),
-                ...formData
+        try {
+            const payload = {
+                tournament: { id: parseInt(tournamentId) },
+                matchDay: { id: parseInt(selectedMatchday) },
+                homeTeam: { id: parseInt(formData.local) },
+                awayTeam: { id: parseInt(formData.visitor) },
+                scheduledTime: formData.time ? `${formData.time}:00` : null,
+                venue: formData.court,
+                status: 'SCHEDULED'
             };
-            setMatches([...matches, newMatch]);
+
+            if (editingMatch) {
+                // Update
+                const response = await client.put(`/matches/${editingMatch.id}`, { ...payload, status: editingMatch.status });
+                setMatches(matches.map(m => m.id === editingMatch.id ? response.data : m));
+            } else {
+                // Create
+                const response = await client.post('/matches', payload);
+                setMatches([...matches, response.data]);
+            }
+            handleCloseModal();
+        } catch (err) {
+            console.error("Error saving match:", err);
+            setError("Error al guardar el partido. Verifica los datos.");
         }
-        handleCloseModal();
     };
 
     const handleDeleteClick = (match) => {
@@ -108,11 +152,18 @@ const AdminMatches = () => {
         setIsDeleteModalOpen(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (matchToDelete) {
-            setMatches(matches.filter(m => m.id !== matchToDelete.id));
-            setIsDeleteModalOpen(false);
-            setMatchToDelete(null);
+            try {
+                await client.delete(`/matches/${matchToDelete.id}`);
+                setMatches(matches.filter(m => m.id !== matchToDelete.id));
+                setIsDeleteModalOpen(false);
+                setMatchToDelete(null);
+            } catch (err) {
+                console.error("Error deleting match:", err);
+                setError("Error al eliminar el partido.");
+                setIsDeleteModalOpen(false); // Close modal anyway
+            }
         }
     };
 

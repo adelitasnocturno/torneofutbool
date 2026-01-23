@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     ChevronLeft,
@@ -13,27 +13,23 @@ import {
     AlertTriangle,
     Shirt
 } from 'lucide-react';
+import client from '../api/client';
 
 const AdminPlayers = () => {
     const navigate = useNavigate();
-    const { id } = useParams();
+    const { id } = useParams(); // Team ID
 
-    // Mock Team Data (In real app, fetch based on ID)
-    const teamName = "Tigres"; // Mock
-
-    // Mock Players
-    const [players, setPlayers] = useState([
-        { id: 1, name: 'Carlos Ruiz', number: '10', position: 'Delantero', active: true, photo: null },
-        { id: 2, name: 'Juan Pérez', number: '8', position: 'Medio', active: true, photo: null },
-        { id: 3, name: 'Pedro López', number: '4', position: 'Defensa', active: true, photo: null },
-        { id: 4, name: 'Miguel Silva', number: '1', position: 'Portero', active: true, photo: null },
-    ]);
+    // Data States
+    const [team, setTeam] = useState(null);
+    const [players, setPlayers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     // UI States
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState(null);
-    const [formData, setFormData] = useState({ name: '', number: '', position: 'Delantero', photo: null });
+    const [formData, setFormData] = useState({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -41,19 +37,49 @@ const AdminPlayers = () => {
 
     const positions = ['Portero', 'Defensa', 'Medio', 'Delantero'];
 
+    // Fetch Team and Players
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            // Parallel fetch
+            const [teamRes, playersRes] = await Promise.all([
+                client.get(`/teams/${id}`),
+                client.get(`/teams/${id}/players`)
+            ]);
+            setTeam(teamRes.data);
+            setPlayers(playersRes.data);
+        } catch (err) {
+            console.error("Error loading players data:", err);
+            setError("No se pudo cargar la información del equipo.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (id) fetchData();
+    }, [id]);
+
     // Filter Logic
     const filteredPlayers = players.filter(player =>
-        player.name.toLowerCase().includes(searchTerm.toLowerCase())
+        (player.fullName || player.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Handlers
     const handleOpenModal = (player = null) => {
+        setError(null);
         if (player) {
             setEditingPlayer(player);
-            setFormData({ name: player.name, number: player.number, position: player.position, photo: player.photo });
+            setFormData({
+                name: player.fullName,
+                nickname: player.nickname || '',
+                number: player.shirtNumber,
+                position: player.position || 'Delantero', // If backend doesn't have position yet, default
+                photo: player.photoUrl
+            });
         } else {
             setEditingPlayer(null);
-            setFormData({ name: '', number: '', position: 'Delantero', photo: null });
+            setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
         }
         setIsModalOpen(true);
     };
@@ -61,22 +87,42 @@ const AdminPlayers = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingPlayer(null);
-        setFormData({ name: '', number: '', position: 'Delantero', photo: null });
+        setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
+        setError(null);
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        if (editingPlayer) {
-            setPlayers(players.map(p => p.id === editingPlayer.id ? { ...p, ...formData } : p));
-        } else {
-            const newPlayer = {
-                id: Date.now(),
-                ...formData,
-                active: true
+        setError(null);
+
+        try {
+            const payload = {
+                fullName: formData.name,
+                nickname: formData.nickname,
+                shirtNumber: parseInt(formData.number),
+                position: formData.position,
+                team: { id: parseInt(id) },
+                isActive: true
             };
-            setPlayers([...players, newPlayer]);
+
+            if (editingPlayer) {
+                // Update
+                const response = await client.put(`/players/${editingPlayer.id}`, payload);
+                setPlayers(players.map(p => p.id === editingPlayer.id ? response.data : p));
+            } else {
+                // Create
+                const response = await client.post('/players', payload);
+                setPlayers([...players, response.data]);
+            }
+            handleCloseModal();
+        } catch (err) {
+            console.error("Error saving player:", err);
+            if (err.response && err.response.status === 409) {
+                setError("Ya existe un jugador con ese número en el equipo.");
+            } else {
+                setError("Error al guardar el jugador.");
+            }
         }
-        handleCloseModal();
     };
 
     const handleDeleteClick = (player) => {
@@ -84,16 +130,29 @@ const AdminPlayers = () => {
         setIsDeleteModalOpen(true);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (playerToDelete) {
-            setPlayers(players.map(p => p.id === playerToDelete.id ? { ...p, active: false } : p));
-            setIsDeleteModalOpen(false);
-            setPlayerToDelete(null);
+            try {
+                const payload = { ...playerToDelete, isActive: false, team: { id: parseInt(id) } };
+                const response = await client.put(`/players/${playerToDelete.id}`, payload);
+                setPlayers(players.map(p => p.id === playerToDelete.id ? response.data : p));
+                setIsDeleteModalOpen(false);
+                setPlayerToDelete(null);
+            } catch (err) {
+                console.error("Error deactivating player:", err);
+                setError("No se pudo eliminar el jugador.");
+            }
         }
     };
 
-    const handleReactive = (id) => {
-        setPlayers(players.map(p => p.id === id ? { ...p, active: true } : p));
+    const handleReactive = async (player) => {
+        try {
+            const payload = { ...player, isActive: true, team: { id: parseInt(id) } };
+            const response = await client.put(`/players/${player.id}`, payload);
+            setPlayers(players.map(p => p.id === player.id ? response.data : p));
+        } catch (err) {
+            console.error("Error activating player:", err);
+        }
     };
 
     return (
@@ -108,7 +167,7 @@ const AdminPlayers = () => {
                         <ChevronLeft className="text-white group-hover:-translate-x-0.5 transition-transform" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-white leading-none">Plantilla: {teamName}</h1>
+                        <h1 className="text-2xl font-black text-white leading-none">Plantilla: {team ? team.name : 'Cargando...'}</h1>
                         <span className="text-blue-300 text-xs font-medium uppercase tracking-wider">Gestión de Jugadores</span>
                     </div>
                 </div>
@@ -142,27 +201,31 @@ const AdminPlayers = () => {
                 {filteredPlayers.map(player => (
                     <div
                         key={player.id}
-                        className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${player.active ? 'border-white/10' : 'border-red-500/20'} rounded-2xl p-6 shadow-lg transition-all hover:scale-[1.01] overflow-hidden`}
+                        className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${player.isActive ? 'border-white/10' : 'border-red-500/20'} rounded-2xl p-6 shadow-lg transition-all hover:scale-[1.01] overflow-hidden`}
                     >
                         {/* Number Badge */}
                         <div className="absolute top-0 left-0 bg-white/5 px-4 py-2 rounded-br-2xl border-r border-b border-white/5 font-black text-xl text-white/50 group-hover:text-blue-400 transition-colors">
-                            {player.number}
+                            {player.shirtNumber}
                         </div>
 
                         {/* Status Dot */}
-                        <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${player.active ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500'}`}></div>
+                        <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${player.isActive ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500'}`}></div>
 
                         <div className="flex flex-col items-center text-center mt-2">
                             {/* Photo Placeholder */}
                             <div className="w-24 h-24 bg-gradient-to-b from-gray-700 to-gray-900 rounded-full flex items-center justify-center border-4 border-[#0f172a] shadow-lg mb-4 group-hover:scale-105 transition-transform overflow-hidden relative">
-                                <User className="text-gray-500" size={40} />
+                                {player.photoUrl ? (
+                                    <img src={player.photoUrl} alt={player.fullName} className="w-full h-full object-cover" />
+                                ) : (
+                                    <User className="text-gray-500" size={40} />
+                                )}
                             </div>
 
-                            <h3 className={`text-xl font-bold ${player.active ? 'text-white' : 'text-gray-500 line-through decoration-red-500/50'}`}>
-                                {player.name}
+                            <h3 className={`text-xl font-bold ${player.isActive ? 'text-white' : 'text-gray-500 line-through decoration-red-500/50'}`}>
+                                {player.fullName}
                             </h3>
                             <span className="text-sm text-blue-300 font-medium uppercase tracking-wider mt-1 bg-blue-500/10 px-3 py-0.5 rounded-full border border-blue-500/10">
-                                {player.position}
+                                {player.position || 'Jugador'}
                             </span>
 
                             {/* Actions Divider */}
@@ -176,7 +239,7 @@ const AdminPlayers = () => {
                                 >
                                     <Pencil size={16} />
                                 </button>
-                                {player.active ? (
+                                {player.isActive ? (
                                     <button
                                         onClick={() => handleDeleteClick(player)}
                                         className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 py-2 rounded-lg border border-red-500/10 transition-colors text-sm font-semibold"
@@ -185,7 +248,7 @@ const AdminPlayers = () => {
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={() => handleReactive(player.id)}
+                                        onClick={() => handleReactive(player)}
                                         className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 py-2 rounded-lg border border-emerald-500/10 transition-colors text-sm font-semibold"
                                     >
                                         <CheckCircle size={16} />

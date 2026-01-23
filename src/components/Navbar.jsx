@@ -46,19 +46,11 @@ const Navbar = () => {
                     <div className="relative group w-full">
                         {matchDays.length > 0 ? (
                             <div className="relative">
-                                <select
-                                    value={currentMatchDayId || ''}
-                                    onChange={(e) => setCurrentMatchDayId(Number(e.target.value))}
-                                    className="w-full appearance-none bg-gradient-to-b from-gray-100 to-gray-300 hover:to-gray-200 border border-white/40 rounded shadow-md py-1.5 pl-4 pr-10 text-[#1a2c4e] text-sm font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                <div
+                                    className="w-full bg-gradient-to-b from-gray-100 to-gray-300 border border-white/40 rounded shadow-md py-1.5 px-4 text-[#1a2c4e] text-sm font-bold flex items-center justify-center cursor-default gap-2"
                                 >
-                                    {matchDays.map(day => (
-                                        <option key={day.id} value={day.id}>
-                                            {day.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-[#1a2c4e]/70">
-                                    <ChevronDown className="w-4 h-4" />
+                                    <span className="text-[#1a2c4e]/70 uppercase text-[10px] tracking-wider">Jornada Actual:</span>
+                                    {matchDays.find(day => day.id === currentMatchDayId)?.label || '...'}
                                 </div>
                             </div>
                         ) : (

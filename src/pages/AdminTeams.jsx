@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
@@ -14,19 +14,15 @@ import {
     AlertTriangle,
     Users
 } from 'lucide-react';
+import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
 
 const AdminTeams = () => {
     const navigate = useNavigate();
-
-    // Mock Initial Data
-    const [teams, setTeams] = useState([
-        { id: 1, name: 'Tigres', active: true, logo: null },
-        { id: 2, name: 'Atlético', active: true, logo: null },
-        { id: 3, name: 'Dragones', active: true, logo: null },
-        { id: 4, name: 'Deportivo', active: true, logo: null },
-        { id: 5, name: 'Estrella', active: true, logo: null },
-        { id: 6, name: 'Lobos FC', active: true, logo: null },
-    ]);
+    const { tournamentId } = useTournament(); // Get active tournament context
+    const [teams, setTeams] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     // UI States
     const [searchTerm, setSearchTerm] = useState('');
@@ -40,6 +36,24 @@ const AdminTeams = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [teamToDelete, setTeamToDelete] = useState(null);
 
+    // Fetch Teams
+    const fetchTeams = async () => {
+        try {
+            setLoading(true);
+            const response = await client.get(`/tournaments/${tournamentId}/teams`);
+            setTeams(response.data);
+        } catch (err) {
+            console.error("Error fetching teams:", err);
+            setError("No se pudieron cargar los equipos.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (tournamentId) fetchTeams();
+    }, [tournamentId]);
+
     // Filter Logic
     const filteredTeams = teams.filter(team =>
         team.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -47,9 +61,10 @@ const AdminTeams = () => {
 
     // Handlers
     const handleOpenModal = (team = null) => {
+        setError(null);
         if (team) {
             setEditingTeam(team);
-            setFormData({ name: team.name, logo: team.logo });
+            setFormData({ name: team.name, logo: team.logoUrl }); // Map logoUrl
         } else {
             setEditingTeam(null);
             setFormData({ name: '', logo: null });
@@ -61,24 +76,42 @@ const AdminTeams = () => {
         setIsModalOpen(false);
         setEditingTeam(null);
         setFormData({ name: '', logo: null });
+        setError(null);
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        if (editingTeam) {
-            // Edit
-            setTeams(teams.map(t => t.id === editingTeam.id ? { ...t, ...formData } : t));
-        } else {
-            // Create
-            const newTeam = {
-                id: Date.now(), // Simple ID generation
-                name: formData.name,
-                logo: formData.logo,
-                active: true
-            };
-            setTeams([...teams, newTeam]);
+        setError(null);
+
+        try {
+            if (editingTeam) {
+                // Update
+                const payload = {
+                    name: formData.name,
+                    tournament: { id: tournamentId }, // Required relationship
+                    // logoUrl: formData.logo // Handle file upload later if needed
+                };
+                const response = await client.put(`/teams/${editingTeam.id}`, payload);
+                setTeams(teams.map(t => t.id === editingTeam.id ? response.data : t));
+            } else {
+                // Create
+                const payload = {
+                    name: formData.name,
+                    tournament: { id: tournamentId },
+                    active: true
+                };
+                const response = await client.post('/teams', payload);
+                setTeams([...teams, response.data]);
+            }
+            handleCloseModal();
+        } catch (err) {
+            console.error("Error saving team:", err);
+            if (err.response && err.response.status === 409) {
+                setError("Ya existe un equipo con ese nombre.");
+            } else {
+                setError("Error al guardar el equipo.");
+            }
         }
-        handleCloseModal();
     };
 
     // Trigger Delete Modal
@@ -87,24 +120,46 @@ const AdminTeams = () => {
         setIsDeleteModalOpen(true);
     };
 
-    // Confirm Delete Action
-    const confirmDelete = () => {
+    // Confirm Delete Action (Soft Delete / Toggle Active)
+    const confirmDelete = async () => {
         if (teamToDelete) {
-            setTeams(teams.map(t => t.id === teamToDelete.id ? { ...t, active: false } : t));
-            setIsDeleteModalOpen(false);
-            setTeamToDelete(null);
+            try {
+                // Assuming we toggle active status or perform hard delete.
+                // Let's assume we update the team to set active=false
+                const payload = { ...teamToDelete, isActive: false, tournament: { id: tournamentId } };
+                // IMPORTANT: Backend entity uses 'isActive', frontend might see 'active' or 'isActive' depending on JSON.
+                // Let's assume 'active' is mapped to 'isActive' or simply use Put.
+
+                // Or simplified endpoint if available. For now, full update.
+                const response = await client.put(`/teams/${teamToDelete.id}`, payload);
+
+                setTeams(teams.map(t => t.id === teamToDelete.id ? response.data : t));
+                setIsDeleteModalOpen(false);
+                setTeamToDelete(null);
+            } catch (err) {
+                console.error("Error deactivating team:", err);
+                setError("No se pudo desactivar el equipo.");
+            }
         }
     };
 
-    const handleReactive = (id) => {
-        setTeams(teams.map(t => t.id === id ? { ...t, active: true } : t));
+    const handleReactive = async (team) => {
+        try {
+            // Re-activate
+            const payload = { ...team, isActive: true, tournament: { id: tournamentId } };
+            const response = await client.put(`/teams/${team.id}`, payload);
+            setTeams(teams.map(t => t.id === team.id ? response.data : t));
+        } catch (err) {
+            console.error("Error reactivating team:", err);
+        }
     };
 
-    // File Input Handler (Mock)
+    // File Input Handler (Mock for now, would need FormData for real upload)
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
             console.log('File selected:', file);
+            // Implement file upload logic here (e.g., upload to S3/Cloudinary/Server and get URL)
         }
     };
 
@@ -154,22 +209,26 @@ const AdminTeams = () => {
                 {filteredTeams.map(team => (
                     <div
                         key={team.id}
-                        className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${team.active ? 'border-white/10' : 'border-red-500/20'} rounded-2xl p-6 shadow-lg transition-all hover:scale-[1.01]`}
+                        className={`group relative bg-[#0f172a]/80 backdrop-blur-xl border ${team.isActive ? 'border-white/10' : 'border-red-500/20'} rounded-2xl p-6 shadow-lg transition-all hover:scale-[1.01]`}
                     >
                         {/* Status Indicator */}
-                        <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${team.active ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500'}`}></div>
+                        <div className={`absolute top-4 right-4 w-2 h-2 rounded-full ${team.isActive ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-red-500'}`}></div>
 
                         <div className="flex flex-col items-center text-center">
                             {/* Logo Placeholder */}
                             <div className="w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-900 rounded-full flex items-center justify-center border-2 border-white/10 mb-4 shadow-inner group-hover:shadow-blue-500/20 transition-shadow">
-                                <Shield className="text-gray-500" size={32} />
+                                {team.logoUrl ? (
+                                    <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover rounded-full" />
+                                ) : (
+                                    <Shield className="text-gray-500" size={32} />
+                                )}
                             </div>
 
-                            <h3 className={`text-lg font-bold ${team.active ? 'text-white' : 'text-gray-500 line-through decoration-red-500/50'}`}>
+                            <h3 className={`text-lg font-bold ${team.isActive ? 'text-white' : 'text-gray-500 line-through decoration-red-500/50'}`}>
                                 {team.name}
                             </h3>
                             <span className="text-xs text-gray-400 font-medium uppercase tracking-wider mt-1">
-                                {team.active ? 'Activo' : 'Inactivo'}
+                                {team.isActive ? 'Activo' : 'Inactivo'}
                             </span>
 
                             {/* Actions Divider */}
@@ -189,7 +248,7 @@ const AdminTeams = () => {
                                 >
                                     <Pencil size={14} /> Editar
                                 </button>
-                                {team.active ? (
+                                {team.isActive ? (
                                     <button
                                         onClick={() => handleDeleteClick(team)}
                                         className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 py-1.5 rounded-lg border border-red-500/10 transition-colors text-sm font-semibold"
@@ -198,7 +257,7 @@ const AdminTeams = () => {
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={() => handleReactive(team.id)}
+                                        onClick={() => handleReactive(team)}
                                         className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 py-1.5 rounded-lg border border-emerald-500/10 transition-colors text-sm font-semibold"
                                     >
                                         <CheckCircle size={14} /> Activar
