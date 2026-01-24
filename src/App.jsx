@@ -16,6 +16,7 @@ import AdminPlayers from './pages/AdminPlayers';
 import AdminCreateMatchday from './pages/AdminCreateMatchday';
 import AdminMatches from './pages/AdminMatches';
 import AdminMatchResult from './pages/AdminMatchResult';
+import AdminPermissions from './pages/AdminPermissions';
 import './App.css';
 
 import { TournamentProvider } from './context/TournamentContext';
@@ -52,6 +53,7 @@ function App() {
                 <Route path="/admin/crear-jornada" element={<AdminCreateMatchday />} />
                 <Route path="/admin/partidos" element={<AdminMatches />} />
                 <Route path="/admin/partidos/:id/resultado" element={<AdminMatchResult />} />
+                <Route path="/admin/permisos" element={<AdminPermissions />} />
               </Route>
             </Routes>
           </Layout>

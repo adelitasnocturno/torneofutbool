@@ -89,6 +89,7 @@ const AdminMatches = () => {
     const filteredMatches = matches;
 
     // Handlers
+    // Handlers
     const handleOpenModal = (match = null) => {
         setError('');
         if (match) {
@@ -96,12 +97,13 @@ const AdminMatches = () => {
             setFormData({
                 local: match.homeTeam.id,
                 visitor: match.awayTeam.id,
+                date: match.date || '',
                 time: match.scheduledTime ? match.scheduledTime.substring(0, 5) : '',
-                court: match.venue
+                court: match.venue || ''
             });
         } else {
             setEditingMatch(null);
-            setFormData({ local: '', visitor: '', time: '', court: '' });
+            setFormData({ local: '', visitor: '', date: '', time: '', court: '' });
         }
         setIsModalOpen(true);
     };
@@ -110,7 +112,7 @@ const AdminMatches = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingMatch(null);
-        setFormData({ local: '', visitor: '', time: '', court: '' });
+        setFormData({ local: '', visitor: '', date: '', time: '', court: '' });
         setError('');
     };
 
@@ -129,6 +131,7 @@ const AdminMatches = () => {
                 matchDay: { id: parseInt(selectedMatchday) },
                 homeTeam: { id: parseInt(formData.local) },
                 awayTeam: { id: parseInt(formData.visitor) },
+                date: formData.date,
                 scheduledTime: formData.time ? `${formData.time}:00` : null,
                 venue: formData.court,
                 status: 'SCHEDULED'
@@ -236,7 +239,7 @@ const AdminMatches = () => {
                                         <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center border border-white/10">
                                             <Shield size={20} className="text-gray-500" />
                                         </div>
-                                        <span className="text-sm font-bold text-white text-center leading-tight">{getTeamName(match.local)}</span>
+                                        <span className="text-sm font-bold text-white text-center leading-tight">{getTeamName(match.homeTeam.id)}</span>
                                     </div>
 
                                     <div className="flex flex-col items-center">
@@ -247,19 +250,23 @@ const AdminMatches = () => {
                                         <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center border border-white/10">
                                             <Shield size={20} className="text-gray-500" />
                                         </div>
-                                        <span className="text-sm font-bold text-white text-center leading-tight">{getTeamName(match.visitor)}</span>
+                                        <span className="text-sm font-bold text-white text-center leading-tight">{getTeamName(match.awayTeam.id)}</span>
                                     </div>
                                 </div>
 
                                 {/* Details */}
-                                <div className="flex flex-row md:flex-col items-center md:items-end gap-3 md:gap-1 text-sm text-gray-400">
-                                    <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                        <Clock size={14} className="text-blue-400" />
-                                        <span>{match.time || '--:--'}</span>
+                                <div className="w-full md:w-auto flex flex-wrap md:flex-col items-center md:items-end justify-center gap-2 md:gap-1 text-xs md:text-sm text-gray-400 mt-4 md:mt-0">
+                                    <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
+                                        <Calendar size={12} className="text-blue-400" />
+                                        <span>{match.date || 'Pendiente'}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                        <MapPin size={14} className="text-emerald-400" />
-                                        <span>{match.court || 'Por definir'}</span>
+                                    <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
+                                        <Clock size={12} className="text-blue-400" />
+                                        <span>{match.scheduledTime ? match.scheduledTime.substring(0, 5) : '--:--'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
+                                        <MapPin size={12} className="text-emerald-400" />
+                                        <span className="truncate max-w-[100px] md:max-w-none">{match.venue || 'Por definir'}</span>
                                     </div>
                                 </div>
 
@@ -392,6 +399,43 @@ const AdminMatches = () => {
                                 </div>
                             </div>
 
+
+
+                            {/* Date, Time and Court Inputs */}
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Fecha</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        min={matchdays.find(m => m.id == selectedMatchday)?.startDate}
+                                        max={matchdays.find(m => m.id == selectedMatchday)?.endDate}
+                                        value={formData.date}
+                                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Hora</label>
+                                    <input
+                                        type="time"
+                                        value={formData.time}
+                                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Cancha</label>
+                                    <input
+                                        type="text"
+                                        value={formData.court}
+                                        onChange={(e) => setFormData({ ...formData, court: e.target.value })}
+                                        placeholder="Ej. Cancha 1"
+                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                    />
+                                </div>
+                            </div>
+
                             <button
                                 type="submit"
                                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
@@ -422,8 +466,9 @@ const AdminMatches = () => {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

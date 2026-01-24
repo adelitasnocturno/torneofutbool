@@ -18,7 +18,8 @@ const AdminCreateMatchday = () => {
     const { tournamentId } = useTournament();
 
     const [formData, setFormData] = useState({
-        date: '',
+        startDate: '',
+        endDate: '',
         label: ''
     });
 
@@ -32,10 +33,18 @@ const AdminCreateMatchday = () => {
         setSuccess(false);
         setIsSubmitting(true);
 
+        // Validation: EndDate >= StartDate
+        if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+            setError('Error: La fecha de fin no puede ser anterior a la fecha de inicio.');
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             await client.post('/matchdays', {
                 tournament: { id: tournamentId },
-                date: formData.date,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
                 label: formData.label
             });
 
@@ -50,7 +59,7 @@ const AdminCreateMatchday = () => {
             if (err.response && (err.response.status === 409 || err.response.status === 500)) {
                 // Assuming 500/409 could indicate duplicate based on the UniqueConstraint
                 // Ideally backend returns specific message, but we can infer duplicate date
-                setError('Error: Es probable que ya exista una jornada en esta fecha.');
+                setError('Error: Es probable que ya exista una jornada con este nombre.');
             } else {
                 setError('Hubo un error al crear la jornada. Inténtalo de nuevo.');
             }
@@ -89,18 +98,32 @@ const AdminCreateMatchday = () => {
 
                     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-                        {/* Date Input */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-blue-200 uppercase tracking-wide flex items-center gap-2">
-                                <Calendar size={14} /> Fecha
-                            </label>
-                            <input
-                                type="date"
-                                required
-                                value={formData.date}
-                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer"
-                            />
+                        {/* Date Range Inputs */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-blue-200 uppercase tracking-wide flex items-center gap-2">
+                                    <Calendar size={14} /> Inicio
+                                </label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={formData.startDate}
+                                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                    className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-blue-200 uppercase tracking-wide flex items-center gap-2">
+                                    <Calendar size={14} /> Fin
+                                </label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={formData.endDate}
+                                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                    className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
                         </div>
 
                         {/* Label Input */}

@@ -66,6 +66,13 @@ const AdminDashboard = () => {
             path: '/admin/partidos'
         },
         {
+            title: 'Gestionar Permisos',
+            icon: ClipboardEdit,
+            desc: 'Justificantes y ausencias de equipos',
+            color: 'from-pink-600 to-pink-500',
+            path: '/admin/permisos'
+        },
+        {
             title: 'Gestionar Equipos',
             icon: Users,
             desc: 'Administrar plantillas, jugadores y escudos',
