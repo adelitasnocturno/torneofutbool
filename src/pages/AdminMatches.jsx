@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
@@ -83,7 +83,10 @@ const AdminMatches = () => {
     const [error, setError] = useState('');
 
     // Filter Matches
-    const filteredMatches = matches.filter(m => m.matchdayId === parseInt(selectedMatchday));
+    // Filter Matches: (Backend already filters by ID, but we keep this for safety if structure matches, or just use matches directly)
+    // The previous filter was failing because 'matchdayId' doesn't exist on the response (it has nested matchDay object).
+    // Start using 'matches' directly since API guarantees they belong to selectedMatchday.
+    const filteredMatches = matches;
 
     // Handlers
     const handleOpenModal = (match = null) => {
@@ -318,7 +321,35 @@ const AdminMatches = () => {
                                         className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
                                     >
                                         <option value="">Seleccionar...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        {teams.map(t => {
+                                            // Check if team plays as Local or Visitor in ANY other match of this matchday
+                                            const existingMatch = matches.find(m =>
+                                                m.id !== editingMatch?.id && // Ignore current match if editing
+                                                (m?.homeTeam?.id === t.id || m?.awayTeam?.id === t.id)
+                                            );
+
+                                            // Format warning string
+                                            let warning = "";
+                                            if (existingMatch) {
+                                                const isHome = existingMatch?.homeTeam?.id === t.id;
+                                                const rival = isHome ? existingMatch?.awayTeam?.name : existingMatch?.homeTeam?.name;
+                                                warning = ` (⚠️ Juega vs ${rival})`;
+                                            }
+
+                                            // Permission info
+                                            const permInfo = `Permisos: ${t.permissionsUsed || 0}/2`;
+                                            const isLimit = (t.permissionsUsed || 0) >= 2;
+
+                                            return (
+                                                <option
+                                                    key={t.id}
+                                                    value={t.id}
+                                                    className={existingMatch ? "text-amber-300" : ""}
+                                                >
+                                                    {t.name} [{permInfo}{isLimit ? ' - Límite' : ''}]{warning}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
 
@@ -331,41 +362,35 @@ const AdminMatches = () => {
                                         className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none"
                                     >
                                         <option value="">Seleccionar...</option>
-                                        {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        {teams.map(t => {
+                                            // Check if team plays as Local or Visitor in ANY other match
+                                            const existingMatch = matches.find(m =>
+                                                m.id !== editingMatch?.id &&
+                                                (m?.homeTeam?.id === t.id || m?.awayTeam?.id === t.id)
+                                            );
+
+                                            let warning = "";
+                                            if (existingMatch) {
+                                                const isHome = existingMatch?.homeTeam?.id === t.id;
+                                                const rival = isHome ? existingMatch?.awayTeam?.name : existingMatch?.homeTeam?.name;
+                                                warning = ` (⚠️ Juega vs ${rival})`;
+                                            }
+
+                                            const permInfo = `Permisos: ${t.permissionsUsed || 0}/2`;
+
+                                            return (
+                                                <option
+                                                    key={t.id}
+                                                    value={t.id}
+                                                    className={existingMatch ? "text-amber-300" : ""}
+                                                >
+                                                    {t.name} [{permInfo}]{warning}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
                             </div>
-
-                            {/* Details Details */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Hora</label>
-                                    <input
-                                        type="time"
-                                        value={formData.time}
-                                        onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Cancha</label>
-                                    <input
-                                        type="text"
-                                        value={formData.court}
-                                        onChange={(e) => setFormData({ ...formData, court: e.target.value })}
-                                        placeholder="Ej. Cancha 1"
-                                        className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Validation Error */}
-                            {error && (
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-300 text-sm font-medium flex items-center gap-2">
-                                    <AlertTriangle size={16} />
-                                    {error}
-                                </div>
-                            )}
 
                             <button
                                 type="submit"

@@ -35,6 +35,10 @@ const AdminPlayers = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [playerToDelete, setPlayerToDelete] = useState(null);
 
+    // Error Modal State
+    const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+
     const positions = ['Portero', 'Defensa', 'Medio', 'Delantero'];
 
     // Fetch Team and Players
@@ -110,18 +114,33 @@ const AdminPlayers = () => {
                 const response = await client.put(`/players/${editingPlayer.id}`, payload);
                 setPlayers(players.map(p => p.id === editingPlayer.id ? response.data : p));
             } else {
-                // Create
+                // Create (or Reactivate)
                 const response = await client.post('/players', payload);
-                setPlayers([...players, response.data]);
+                // Check if player already exists in state (reactivation case)
+                const exists = players.some(p => p.id === response.data.id);
+                if (exists) {
+                    setPlayers(players.map(p => p.id === response.data.id ? response.data : p));
+                    setError("¡Jugador reactivado exitosamente!"); // Optional feedback
+                    setTimeout(() => setError(null), 3000);
+                } else {
+                    setPlayers([...players, response.data]);
+                }
             }
             handleCloseModal();
         } catch (err) {
             console.error("Error saving player:", err);
-            if (err.response && err.response.status === 409) {
-                setError("Ya existe un jugador con ese número en el equipo.");
-            } else {
-                setError("Error al guardar el jugador.");
+            let msg = "Error al guardar el jugador.";
+
+            const backendMsg = err.response?.data?.message || err.response?.data?.error || "";
+            // Broaden check for duplicate errors (including SQL constraints)
+            if (backendMsg.includes("ocupado") || backendMsg.includes("duplicate") || backendMsg.includes("Constraint") || (err.response && err.response.status === 409)) {
+                msg = "El número de camiseta ya está en uso. Por favor, elija otro.";
+            } else if (backendMsg) {
+                msg = backendMsg;
             }
+
+            setErrorMessage(msg);
+            setIsErrorModalOpen(true);
         }
     };
 
@@ -364,6 +383,28 @@ const AdminPlayers = () => {
                             <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-white hover:bg-white/5 font-bold text-sm">Cancelar</button>
                             <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold text-sm shadow-lg shadow-red-900/30 transition-all active:scale-95">Sí, desactivar</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Modal */}
+            {isErrorModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsErrorModalOpen(false)}></div>
+                    <div className="relative bg-[#0f172a] border border-amber-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+                        <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                            <AlertTriangle className="text-amber-500" size={32} />
+                        </div>
+                        <h2 className="text-xl font-black text-white mb-2">Atención</h2>
+                        <p className="text-gray-300 text-m mb-6 px-2">
+                            {errorMessage}
+                        </p>
+                        <button
+                            onClick={() => setIsErrorModalOpen(false)}
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-bold text-sm shadow-lg shadow-amber-900/30 transition-all active:scale-95"
+                        >
+                            Entendido
+                        </button>
                     </div>
                 </div>
             )}
