@@ -39,7 +39,6 @@ const MatchDetail = () => {
                     setGoals(goalsRes.data);
                 } catch (e) {
                     // Fallback or ignore if endpoint fails
-                    console.warn("Goals endpoint not found or error", e);
                 }
 
             } catch (error) {
@@ -96,7 +95,7 @@ const MatchDetail = () => {
                         <div className="w-16 h-16 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(30,58,138,0.5)]">
                             <Shield className="text-blue-400 w-8 h-8 md:w-12 md:h-12" />
                         </div>
-                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.homeTeam.name}</h3>
+                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.homeTeam?.name || 'Local'}</h3>
                     </div>
 
                     {/* Score / VS */}
@@ -104,11 +103,11 @@ const MatchDetail = () => {
                         {isFinal ? (
                             <div className="flex items-center gap-2 md:gap-4">
                                 <span className="text-4xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
-                                    {match.homeScore}
+                                    {match.homeScore ?? 0}
                                 </span>
                                 <span className="text-gray-600 text-2xl md:text-4xl">-</span>
                                 <span className="text-4xl md:text-7xl font-black text-white drops-shadow-[0_0_15px_rgba(255,255,255,0.5)] font-mono">
-                                    {match.awayScore}
+                                    {match.awayScore ?? 0}
                                 </span>
                             </div>
                         ) : (
@@ -124,7 +123,7 @@ const MatchDetail = () => {
                         <div className="w-16 h-16 md:w-24 md:h-24 bg-white/5 rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
                             <Shield className="text-red-400 w-8 h-8 md:w-12 md:h-12" />
                         </div>
-                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.awayTeam.name}</h3>
+                        <h3 className="text-white font-black text-sm md:text-2xl leading-tight text-balance break-words w-full">{match.awayTeam?.name || 'Visitante'}</h3>
                     </div>
                 </div>
             </div>
@@ -141,11 +140,11 @@ const MatchDetail = () => {
                             <div key={goal.id || index} className="flex items-center justify-between bg-[#1e293b]/60 backdrop-blur-md border border-white/5 rounded-lg p-3">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white">
-                                        {goal.player ? goal.player.fullName.charAt(0) : 'G'}
+                                        {goal.player?.fullName ? goal.player.fullName.charAt(0) : 'G'}
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-white font-bold text-sm">{goal.player ? goal.player.fullName : 'Jugador Desconocido'}</span>
-                                        <span className="text-xs text-gray-400">{goal.team ? goal.team.name : 'Equipo'}</span>
+                                        <span className="text-white font-bold text-sm">{goal.player?.fullName || 'Jugador Desconocido'}</span>
+                                        <span className="text-xs text-gray-400">{goal.team?.name || 'Equipo'}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-1 rounded text-green-400 text-xs font-bold border border-green-500/20">

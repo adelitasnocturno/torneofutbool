@@ -56,7 +56,7 @@ const AdminTeams = () => {
 
     // Filter Logic
     const filteredTeams = teams.filter(team =>
-        team.name.toLowerCase().includes(searchTerm.toLowerCase())
+        !team.isBanned && team.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Handlers
@@ -120,26 +120,33 @@ const AdminTeams = () => {
         setIsDeleteModalOpen(true);
     };
 
-    // Confirm Delete Action (Soft Delete / Toggle Active)
+    // Confirm Delete Action (Administrative Ban)
     const confirmDelete = async () => {
         if (teamToDelete) {
             try {
-                // Assuming we toggle active status or perform hard delete.
-                // Let's assume we update the team to set active=false
-                const payload = { ...teamToDelete, isActive: false, tournament: { id: tournamentId } };
-                // IMPORTANT: Backend entity uses 'isActive', frontend might see 'active' or 'isActive' depending on JSON.
-                // Let's assume 'active' is mapped to 'isActive' or simply use Put.
-
-                // Or simplified endpoint if available. For now, full update.
+                // Hard Ban: Set isBanned=true AND isActive=false
+                const payload = { ...teamToDelete, isBanned: true, isActive: false, tournament: { id: tournamentId } };
                 const response = await client.put(`/teams/${teamToDelete.id}`, payload);
 
+                // Update list (will disappear due to filter)
                 setTeams(teams.map(t => t.id === teamToDelete.id ? response.data : t));
                 setIsDeleteModalOpen(false);
                 setTeamToDelete(null);
             } catch (err) {
-                console.error("Error deactivating team:", err);
-                setError("No se pudo desactivar el equipo.");
+                console.error("Error banning team:", err);
+                setError("No se pudo dar de baja al equipo.");
             }
+        }
+    };
+
+    const handleToggleActive = async (team) => {
+        try {
+            // Sporting Toggle: Flip isActive
+            const payload = { ...team, isActive: !team.isActive, tournament: { id: tournamentId } };
+            const response = await client.put(`/teams/${team.id}`, payload);
+            setTeams(teams.map(t => t.id === team.id ? response.data : t));
+        } catch (err) {
+            console.error("Error toggling team status:", err);
         }
     };
 
@@ -158,7 +165,7 @@ const AdminTeams = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            console.log('File selected:', file);
+
             // Implement file upload logic here (e.g., upload to S3/Cloudinary/Server and get URL)
         }
     };
@@ -227,9 +234,19 @@ const AdminTeams = () => {
                             <h3 className={`text-lg font-bold ${team.isActive ? 'text-white' : 'text-gray-500 line-through decoration-red-500/50'}`}>
                                 {team.name}
                             </h3>
-                            <span className="text-xs text-gray-400 font-medium uppercase tracking-wider mt-1">
-                                {team.isActive ? 'Activo' : 'Inactivo'}
-                            </span>
+                            {/* Status Toggle (Sporting) */}
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className={`text-xs font-bold uppercase tracking-wider ${team.isActive ? 'text-emerald-400' : 'text-gray-500'}`}>
+                                    {team.isActive ? 'Compitiendo' : 'Inactivo'}
+                                </span>
+                                <button
+                                    onClick={() => handleToggleActive(team)}
+                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${team.isActive ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                                    title={team.isActive ? 'Desactivar (Descanso/Eliminación)' : 'Activar para jugar'}
+                                >
+                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${team.isActive ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
 
                             {/* Actions Divider */}
                             <div className="w-full h-px bg-white/5 my-4"></div>
@@ -248,21 +265,13 @@ const AdminTeams = () => {
                                 >
                                     <Pencil size={14} /> Editar
                                 </button>
-                                {team.isActive ? (
-                                    <button
-                                        onClick={() => handleDeleteClick(team)}
-                                        className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-300 py-1.5 rounded-lg border border-red-500/10 transition-colors text-sm font-semibold"
-                                    >
-                                        <Trash2 size={14} /> Baja
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => handleReactive(team)}
-                                        className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 py-1.5 rounded-lg border border-emerald-500/10 transition-colors text-sm font-semibold"
-                                    >
-                                        <CheckCircle size={14} /> Activar
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => handleDeleteClick(team)} // Now triggers Ban
+                                    className="flex-none p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg border border-red-500/10 transition-colors group/ban"
+                                    title="BANEAR DEL TORNEO (Eliminación Administrativa)"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
                             </div>
                         </div>
                     </div>

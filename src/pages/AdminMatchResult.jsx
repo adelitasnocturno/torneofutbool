@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import client from '../api/client';
 import {
     ChevronLeft,
     Save,
@@ -9,96 +10,163 @@ import {
     Trash2,
     Timer,
     CheckCircle,
-    Shield
+    Shield,
+    Loader2
 } from 'lucide-react';
 
 const AdminMatchResult = () => {
     const navigate = useNavigate();
     const { id } = useParams();
 
-    // Mock Match Data
-    const [match, setMatch] = useState({
-        id: id,
-        localTeam: { id: 1, name: 'Tigres' },
-        visitorTeam: { id: 2, name: 'Atlético' },
-        localScore: 2,
-        visitorScore: 1,
-        status: 'FINAL', // 'PENDING', 'LIVE', 'FINAL'
-    });
-
-    // Mock Players Data (Merged for simplicity in this view, usually fetched by team ID)
-    const players = {
-        1: [ // Tigres
-            { id: 101, name: 'Carlos Ruiz', number: 10 },
-            { id: 102, name: 'Juan Pérez', number: 8 },
-        ],
-        2: [ // Atlético
-            { id: 201, name: 'Luis Hernández', number: 9 },
-            { id: 202, name: 'Miguel Silva', number: 1 },
-        ]
-    };
-
-    // Mock Scorers List
-    const [scorers, setScorers] = useState([
-        { id: 1, teamId: 1, playerId: 101, time: '15' }, // Tigres Goal
-        { id: 2, teamId: 2, playerId: 201, time: '32' }, // Atlético Goal
-        { id: 3, teamId: 1, playerId: 101, time: '88' }, // Tigres Goal
-    ]);
+    const [match, setMatch] = useState(null);
+    const [players, setPlayers] = useState({}); // { teamId: [Player] }
+    const [scorers, setScorers] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     // Form States
-    const [selectedTeamId, setSelectedTeamId] = useState(match.localTeam.id);
+    const [selectedTeamId, setSelectedTeamId] = useState('');
     const [selectedPlayerId, setSelectedPlayerId] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+
+    useEffect(() => {
+        fetchData();
+    }, [id]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const matchRes = await client.get(`/matches/${id}`);
+            const fetchedMatch = matchRes.data;
+            setMatch(fetchedMatch);
+
+            // Fetch Goals
+            const goalsRes = await client.get(`/matches/${id}/goals`);
+            setScorers(goalsRes.data);
+
+            // Fetch Players for both teams
+            const homePlayersRes = await client.get(`/teams/${fetchedMatch.homeTeam?.id}/players`);
+            const awayPlayersRes = await client.get(`/teams/${fetchedMatch.awayTeam?.id}/players`);
+
+            setPlayers({
+                [fetchedMatch.homeTeam.id]: homePlayersRes.data,
+                [fetchedMatch.awayTeam.id]: awayPlayersRes.data
+            });
+
+            // Set default selected team
+            setSelectedTeamId(fetchedMatch.homeTeam.id);
+
+        } catch (error) {
+            console.error("Error fetching match details:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Derived State
     const currentTeamPlayers = players[selectedTeamId] || [];
 
+    // Auto-calculate scores whenever scorers list changes
+    useEffect(() => {
+        if (!match || !scorers) return;
+
+        const homeGoals = scorers.filter(g => {
+            const tId = g.team ? g.team.id : g.teamId;
+            return tId === match.homeTeam.id;
+        }).length;
+
+        const awayGoals = scorers.filter(g => {
+            const tId = g.team ? g.team.id : g.teamId;
+            return tId === match.awayTeam.id;
+        }).length;
+
+        setMatch(prev => ({
+            ...prev,
+            homeScore: homeGoals,
+            awayScore: awayGoals
+        }));
+    }, [scorers]);
+
     // Handlers
-    const handleAddGoal = (e) => {
+    const handleAddGoal = async (e) => {
         e.preventDefault();
-        if (!selectedPlayerId) return;
+        if (!selectedPlayerId || !match) return;
 
-        const newGoal = {
-            id: Date.now(),
-            teamId: parseInt(selectedTeamId),
-            playerId: parseInt(selectedPlayerId),
-            time: '-' // Could add time input if needed
-        };
+        try {
+            const goalDto = {
+                matchId: parseInt(id),
+                teamId: parseInt(selectedTeamId),
+                playerId: parseInt(selectedPlayerId),
+                minute: 0 // Optional: Add minute input later if needed
+            };
 
-        // Update Scorers List
-        setScorers([...scorers, newGoal]);
+            const res = await client.post('/goals', goalDto);
 
-        // Auto-update Score (Optional convenience)
-        if (parseInt(selectedTeamId) === match.localTeam.id) {
-            setMatch({ ...match, localScore: match.localScore + 1 });
-        } else {
-            setMatch({ ...match, visitorScore: match.visitorScore + 1 });
-        }
+            // Update local state
+            setScorers([...scorers, res.data]);
 
-        setSelectedPlayerId('');
-    };
+            // Score update is handled by useEffect now
 
-    const handleRemoveGoal = (goalId, teamId) => {
-        setScorers(scorers.filter(g => g.id !== goalId));
-
-        // Auto-decrement Score
-        if (teamId === match.localTeam.id) {
-            setMatch({ ...match, localScore: Math.max(0, match.localScore - 1) });
-        } else {
-            setMatch({ ...match, visitorScore: Math.max(0, match.visitorScore - 1) });
+            setSelectedPlayerId('');
+        } catch (error) {
+            console.error("Error adding goal:", error);
+            alert("Error al agregar gol");
         }
     };
 
-    const handleSaveResult = () => {
-        console.log('Saving result:', match, scorers);
-        setSuccessMessage('¡Resultado actualizado correctamente!');
-        setTimeout(() => setSuccessMessage(''), 3000);
+    const handleRemoveGoal = async (goalId, teamId) => {
+        try {
+            await client.delete(`/goals/${goalId}`);
+
+            setScorers(scorers.filter(g => g.id !== goalId));
+
+            // Score update is handled by useEffect now
+        } catch (error) {
+            console.error("Error deleting goal:", error);
+        }
     };
 
-    const getPlayerName = (pid, tid) => {
-        const p = players[tid]?.find(p => p.id === pid);
-        return p ? p.name : 'Desconocido';
+    const handleSaveResult = async () => {
+        try {
+            // Update Match global score and status
+            const updatePayload = {
+                status: match.status,
+                homeScore: match.homeScore,
+                awayScore: match.awayScore,
+                scheduledTime: match.scheduledTime,
+                venue: match.venue
+            };
+
+            await client.put(`/matches/${match.id}`, updatePayload);
+
+            setSuccessMessage('¡Resultado actualizado correctamente!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (error) {
+            console.error("Error saving result:", error);
+            alert("Error al guardar resultado");
+        }
     };
+
+    const getPlayerName = (goal) => {
+        // Option 1: Use the player object inside the goal entity (if backend populates it)
+        if (goal.player && goal.player.fullName) return goal.player.fullName;
+        if (goal.player && goal.player.name) return goal.player.name;
+
+        // Option 2: Fallback to players list lookup
+        const teamId = goal.team ? goal.team.id : null;
+        if (!teamId) return 'Desconocido';
+
+        const teamPlayers = players[teamId] || [];
+        const found = teamPlayers.find(p => p.id === goal.player?.id || p.id === goal.player);
+        return found ? found.fullName : 'Jugador';
+    };
+
+    if (loading || !match) {
+        return (
+            <div className="min-h-screen w-full flex items-center justify-center">
+                <Loader2 className="animate-spin text-blue-500" size={48} />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen w-full p-4 pb-20 md:p-8">
@@ -126,38 +194,43 @@ const AdminMatchResult = () => {
                             <h2 className="text-xl font-bold text-white">Marcador Global</h2>
                         </div>
 
-                        {/* Score Inputs */}
-                        <div className="flex items-center justify-between gap-4 mb-8">
+                        {/* Score Inputs (Mobile Optimized) */}
+                        <div className="flex items-center justify-between gap-2 md:gap-4 mb-8">
                             {/* Local */}
-                            <div className="flex flex-col items-center gap-4 flex-1">
-                                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center border-2 border-white/10 shadow-lg">
-                                    <Shield size={32} className="text-white" />
+                            <div className="flex flex-col items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center border-2 border-white/10 shadow-lg shrink-0">
+                                    <Shield className="text-white w-6 h-6 md:w-8 md:h-8" />
                                 </div>
-                                <h3 className="text-lg font-bold text-white text-center">{match.localTeam.name}</h3>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={match.localScore}
-                                    onChange={(e) => setMatch({ ...match, localScore: parseInt(e.target.value) || 0 })}
-                                    className="w-24 h-24 bg-[#1e293b] border-2 border-white/10 rounded-2xl text-5xl font-black text-white text-center focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all"
-                                />
+                                <h3 className="text-sm md:text-lg font-bold text-white text-center truncate w-full block" title={match.homeTeam.name}>{match.homeTeam.name}</h3>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        readOnly
+                                        value={match.homeScore}
+                                        className="w-20 h-20 md:w-24 md:h-24 bg-black/40 border-2 border-white/5 rounded-2xl text-4xl md:text-5xl font-black text-white/50 text-center focus:outline-none cursor-not-allowed"
+                                    />
+                                </div>
                             </div>
 
-                            <span className="text-4xl font-black text-gray-600">-</span>
+                            <div className="flex flex-col items-center justify-center">
+                                <span className="text-2xl md:text-4xl font-black text-gray-600 shrink-0 mx-[-4px]">-</span>
+                                <span className="text-[10px] text-gray-600 uppercase tracking-widest mt-1">Auto</span>
+                            </div>
 
                             {/* Visitor */}
-                            <div className="flex flex-col items-center gap-4 flex-1">
-                                <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-800 rounded-full flex items-center justify-center border-2 border-white/10 shadow-lg">
-                                    <Shield size={32} className="text-white" />
+                            <div className="flex flex-col items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-red-600 to-red-800 rounded-full flex items-center justify-center border-2 border-white/10 shadow-lg shrink-0">
+                                    <Shield className="text-white w-6 h-6 md:w-8 md:h-8" />
                                 </div>
-                                <h3 className="text-lg font-bold text-white text-center">{match.visitorTeam.name}</h3>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={match.visitorScore}
-                                    onChange={(e) => setMatch({ ...match, visitorScore: parseInt(e.target.value) || 0 })}
-                                    className="w-24 h-24 bg-[#1e293b] border-2 border-white/10 rounded-2xl text-5xl font-black text-white text-center focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all"
-                                />
+                                <h3 className="text-sm md:text-lg font-bold text-white text-center truncate w-full block" title={match.awayTeam.name}>{match.awayTeam.name}</h3>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        readOnly
+                                        value={match.awayScore}
+                                        className="w-20 h-20 md:w-24 md:h-24 bg-black/40 border-2 border-white/5 rounded-2xl text-4xl md:text-5xl font-black text-white/50 text-center focus:outline-none cursor-not-allowed"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -171,9 +244,11 @@ const AdminMatchResult = () => {
                                 onChange={(e) => setMatch({ ...match, status: e.target.value })}
                                 className="w-full bg-[#1e293b] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
                             >
-                                <option value="PENDING">Pendiente / Por Jugar</option>
-                                <option value="LIVE">En Vivo / Jugando</option>
+                                <option value="SCHEDULED">Pendiente / Por Jugar</option>
+                                <option value="IN_PROGRESS">En Vivo / Jugando</option>
                                 <option value="FINAL">Finalizado</option>
+                                <option value="CANCELLED">Cancelado</option>
+                                <option value="POSTPONED">Pospuesto</option>
                             </select>
                         </div>
 
@@ -215,8 +290,8 @@ const AdminMatchResult = () => {
                                         }}
                                         className="w-full bg-[#0f172a] border border-white/10 rounded-lg p-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
                                     >
-                                        <option value={match.localTeam.id}>{match.localTeam.name}</option>
-                                        <option value={match.visitorTeam.id}>{match.visitorTeam.name}</option>
+                                        <option value={match.homeTeam.id}>{match.homeTeam.name}</option>
+                                        <option value={match.awayTeam.id}>{match.awayTeam.name}</option>
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
@@ -228,7 +303,7 @@ const AdminMatchResult = () => {
                                     >
                                         <option value="">Seleccionar...</option>
                                         {currentTeamPlayers.map(p => (
-                                            <option key={p.id} value={p.id}>#{p.number} {p.name}</option>
+                                            <option key={p.id} value={p.id}>#{p.shirtNumber} {p.fullName}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -248,28 +323,34 @@ const AdminMatchResult = () => {
                             {scorers.length === 0 ? (
                                 <p className="text-gray-500 text-center py-8 italic">Sin goles registrados.</p>
                             ) : (
-                                scorers.map((goal, index) => (
-                                    <div key={goal.id} className="flex items-center justify-between bg-[#1e293b] p-3 rounded-xl border border-white/5 animate-in slide-in-from-right-2" style={{ animationDelay: `${index * 50}ms` }}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${goal.teamId === match.localTeam.id ? 'bg-blue-600/20 text-blue-300' : 'bg-red-600/20 text-red-300'}`}>
-                                                {goal.teamId === match.localTeam.id ? 'L' : 'V'}
+                                scorers.map((goal, index) => {
+                                    // goal.team might be just ID or object. usually object in standard JPA json
+                                    const teamId = goal.team ? goal.team.id : null;
+                                    const isHomeGoal = teamId === match.homeTeam.id;
+
+                                    return (
+                                        <div key={goal.id} className="flex items-center justify-between bg-[#1e293b] p-3 rounded-xl border border-white/5 animate-in slide-in-from-right-2" style={{ animationDelay: `${index * 50}ms` }}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${isHomeGoal ? 'bg-blue-600/20 text-blue-300' : 'bg-red-600/20 text-red-300'}`}>
+                                                    {isHomeGoal ? 'L' : 'V'}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white font-bold text-sm">{getPlayerName(goal)}</p>
+                                                    <p className="text-xs text-gray-400">
+                                                        {isHomeGoal ? match.homeTeam.name : match.awayTeam.name}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-white font-bold text-sm">{getPlayerName(goal.playerId, goal.teamId)}</p>
-                                                <p className="text-xs text-gray-400">
-                                                    {goal.teamId === match.localTeam.id ? match.localTeam.name : match.visitorTeam.name}
-                                                </p>
-                                            </div>
+                                            <button
+                                                onClick={() => handleRemoveGoal(goal.id, teamId)}
+                                                className="text-gray-500 hover:text-red-400 p-2 transition-colors"
+                                                title="Eliminar gol"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => handleRemoveGoal(goal.id, goal.teamId)}
-                                            className="text-gray-500 hover:text-red-400 p-2 transition-colors"
-                                            title="Eliminar gol"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>

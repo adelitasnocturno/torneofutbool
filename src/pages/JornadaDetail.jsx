@@ -7,23 +7,27 @@ const JornadaDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [matches, setMatches] = useState([]);
+    const [matchDay, setMatchDay] = useState(null);
     const [loading, setLoading] = useState(true);
-    // Ideally fetch these details too or pass via state, for now we can infer or leave generic
-    const [jornadaLabel, setJornadaLabel] = useState(`Jornada ${id}`);
+    const [jornadaLabel, setJornadaLabel] = useState(`Jornada`);
 
     useEffect(() => {
-        const fetchMatches = async () => {
+        const fetchData = async () => {
             try {
-                const response = await client.get(`/matchdays/${id}/matches`);
-                setMatches(response.data);
-                // Try to guess a label if matches exist and have metadata, OR fetch matchday details in parallel
+                const [matchesRes, matchDayRes] = await Promise.all([
+                    client.get(`/matchdays/${id}/matches`),
+                    client.get(`/matchdays/${id}`)
+                ]);
+                setMatches(matchesRes.data);
+                setMatchDay(matchDayRes.data);
+                if (matchDayRes.data.label) setJornadaLabel(matchDayRes.data.label);
             } catch (error) {
-                console.error("Error fetching detailed matches:", error);
+                console.error("Error fetching data:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchMatches();
+        fetchData();
     }, [id]);
 
     if (loading) return <div className="text-white text-center mt-10">Cargando partidos...</div>;
@@ -47,10 +51,20 @@ const JornadaDetail = () => {
                     <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-lg">
                         {jornadaLabel}
                     </h2>
-                    <div className="flex items-center gap-2 text-blue-200/90 font-medium text-lg">
-                        <Calendar size={20} className="text-yellow-400" />
-                        {/* Show generic or first match date as proxy */}
-                        {matches.length > 0 && matches[0].scheduledTime ? matches[0].scheduledTime.split('T')[0] : 'Fecha no disponible'}
+                    <div className="flex items-start gap-2 text-blue-200/90 font-medium text-lg">
+                        <Calendar size={20} className="text-yellow-400 mt-1" />
+                        {matchDay ? (
+                            matchDay.startDate === matchDay.endDate ? (
+                                <span>{matchDay.startDate}</span>
+                            ) : (
+                                <div className="flex flex-col text-sm md:text-base">
+                                    <span>Inicio: {matchDay.startDate}</span>
+                                    <span>Fin: {matchDay.endDate}</span>
+                                </div>
+                            )
+                        ) : (
+                            <span>{matches.length > 0 && matches[0].date ? matches[0].date : 'Fecha no disponible'}</span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -70,15 +84,15 @@ const JornadaDetail = () => {
                             <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/0 to-yellow-500/0 group-hover:from-yellow-500/5 group-hover:via-yellow-500/10 group-hover:to-transparent transition-all duration-500"></div>
 
                             {/* Card Content - Grid Layout */}
-                            <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                            <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
 
                                 {/* Home Team (Left) */}
-                                <div className="flex flex-col items-center gap-2 text-center">
+                                <div className="flex flex-col items-center gap-2 text-center min-w-0">
                                     <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
                                         <Shield className="text-blue-400" size={28} />
                                     </div>
-                                    <span className="text-white font-bold text-sm md:text-base leading-tight">
-                                        {match.homeTeam.name}
+                                    <span className="text-white font-bold text-sm md:text-base leading-tight break-words w-full px-1">
+                                        {match.homeTeam?.name || 'Local'}
                                     </span>
                                 </div>
 
@@ -87,20 +101,20 @@ const JornadaDetail = () => {
                                     {match.status === 'FINAL' ? (
                                         <div className="flex items-center gap-3">
                                             <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
-                                                {match.homeScore}
+                                                {match.homeScore ?? 0}
                                             </span>
                                             <span className="text-gray-500 font-bold">-</span>
                                             <span className="text-3xl md:text-4xl font-black text-white drop-shadow-lg font-mono">
-                                                {match.awayScore}
+                                                {match.awayScore ?? 0}
                                             </span>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col items-center gap-1">
                                             <div className="bg-blue-600/20 text-blue-300 px-3 py-1 rounded-full text-xs font-bold border border-blue-500/30 flex items-center gap-1">
                                                 <Clock size={12} />
-                                                {match.scheduledTime ? match.scheduledTime.substring(11, 16) : 'TBD'}
+                                                {match.scheduledTime ? (match.scheduledTime.includes('T') ? match.scheduledTime.substring(11, 16) : match.scheduledTime.substring(0, 5)) : 'TBD'}
                                             </div>
-                                            <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                            <span className="text-xs text-gray-400 flex items-center gap-1 mt-1 text-center justify-center">
                                                 <MapPin size={10} />
                                                 {match.venue || 'Campo 1'}
                                             </span>
@@ -114,12 +128,12 @@ const JornadaDetail = () => {
                                 </div>
 
                                 {/* Away Team (Right) */}
-                                <div className="flex flex-col items-center gap-2 text-center">
+                                <div className="flex flex-col items-center gap-2 text-center min-w-0">
                                     <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-full flex items-center justify-center border border-white/10 shadow-lg group-hover:scale-110 transition-transform duration-300">
                                         <Shield className="text-red-400" size={28} />
                                     </div>
-                                    <span className="text-white font-bold text-sm md:text-base leading-tight">
-                                        {match.awayTeam.name}
+                                    <span className="text-white font-bold text-sm md:text-base leading-tight break-words w-full px-1">
+                                        {match.awayTeam?.name || 'Visitante'}
                                     </span>
                                 </div>
 

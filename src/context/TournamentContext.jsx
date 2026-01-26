@@ -9,50 +9,82 @@ export const TournamentProvider = ({ children }) => {
     const [currentMatchDayId, setCurrentMatchDayId] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const [tournaments, setTournaments] = useState([]); // List of all tournaments
+
     useEffect(() => {
-        const fetchTournamentData = async () => {
+        // 0. Initialize: Fetch All Tournaments and Auto-Select Latest if none selected
+        const initializeTournaments = async () => {
             try {
-                // 1. Fetch MatchDays for the tournament
-                const response = await client.get(`/tournaments/${tournamentId}/matchdays`);
-                const days = response.data;
-                setMatchDays(days);
+                const res = await client.get('/tournaments');
+                if (res.data && Array.isArray(res.data)) {
+                    // Sort by ID DESC (Newest first)
+                    const sorted = res.data.sort((a, b) => b.id - a.id);
+                    setTournaments(sorted);
 
-                // 2. Determine "Current MatchDay"
-                // Logic: Find the first matchday that is strictly in the future, or default to the last one if all passed
-                // For simplicity, let's select the last one if available, or the first one.
-                // Better logic: Select the one closest to today?
-                if (days.length > 0) {
-                    // Logic: Find the first matchday that is Today or Future
-                    const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-                    // Assuming days are already sorted by date from backend (OrderByDateAsc)
-                    const upcomingOrToday = days.find(d => d.date >= today);
-
-                    if (upcomingOrToday) {
-                        setCurrentMatchDayId(upcomingOrToday.id);
-                    } else {
-                        // If all are in the past, show the last one (most recent past)
-                        setCurrentMatchDayId(days[days.length - 1].id);
+                    // Auto-select the latest if we don't have one, or if the current one is invalid?
+                    // For now, let's only auto-select if tournamentId is strictly default (1) and we want to upgrade it,
+                    // OR if we want to force the latest on first load.
+                    // Given the previous fix, we just pick the first one of the sorted list.
+                    if (sorted.length > 0) {
+                        // Only override if we are on the default '1' which might be wrong, or empty.
+                        // But to be safe and responsive, let's just default to the latest.
+                        // We can check if the current tournamentId is in the list to preserve it during re-renders?
+                        // Ideally, we only set it once.
+                        setTournamentId(prev => {
+                            // If previous ID exists in the new list, keep it. Else, take latest.
+                            const exists = sorted.find(t => t.id === prev);
+                            return exists ? prev : sorted[0].id;
+                        });
                     }
-                } else {
-                    setCurrentMatchDayId(null);
                 }
-            } catch (error) {
-                console.error("Failed to load tournament data", error);
-            } finally {
-                setLoading(false);
+            } catch (e) {
+                console.error("Error initializing tournaments", e);
             }
         };
+        initializeTournaments();
+    }, []);
 
+    const fetchTournamentData = async () => {
+        if (!tournamentId) return;
+        setLoading(true);
+        try {
+            // 1. Fetch MatchDays for the tournament
+            const response = await client.get(`/tournaments/${tournamentId}/matchdays`);
+            const days = response.data;
+            setMatchDays(Array.isArray(days) ? days : []);
+
+            // 2. Determine "Current MatchDay"
+            if (Array.isArray(days) && days.length > 0) {
+                const today = new Date().toLocaleDateString('en-CA');
+                const upcomingOrToday = days.find(d => d.date >= today);
+                if (upcomingOrToday) {
+                    setCurrentMatchDayId(upcomingOrToday.id);
+                } else {
+                    setCurrentMatchDayId(days[days.length - 1].id);
+                }
+            } else {
+                setCurrentMatchDayId(null);
+            }
+        } catch (error) {
+            console.error("Failed to load tournament data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchTournamentData();
     }, [tournamentId]);
 
     const value = {
         tournamentId,
+        setTournamentId, // Expose setter for the Selector
+        tournaments,     // Expose list for the Selector
         matchDays,
         currentMatchDayId,
         setCurrentMatchDayId,
-        loading
+        loading,
+        refreshData: fetchTournamentData // Expose refresh method
     };
 
     return (

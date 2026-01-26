@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+
     LayoutDashboard,
     CalendarPlus,
     Swords,
@@ -8,15 +9,20 @@ import {
     Users,
     LogOut,
     ChevronRight,
-    Trophy
+    Trophy,
+    ChevronDown
 } from 'lucide-react';
 import logo from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
+import { useTournament } from '../context/TournamentContext';
 import client from '../api/client';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const { logout } = useAuth();
+    const { tournamentId, setTournamentId, tournaments } = useTournament(); // Get ID and Selector utils
+
+    // Stats State
     const [stats, setStats] = useState({
         totalTeams: 0,
         currentMatchDay: 'Cargando...',
@@ -24,23 +30,46 @@ const AdminDashboard = () => {
         totalGoals: 0
     });
 
+    // Settings State
+    const [isDoubleRound, setIsDoubleRound] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchData = async () => {
+            if (!tournamentId) return;
             try {
-                const response = await client.get('/stats/dashboard');
-                // Maps backend DTO: { totalTeams, currentMatchDay, matchesPlayed, totalGoals }
-                setStats(response.data);
+                // Parallel fetch for speed
+                const [statsRes, tournamentRes] = await Promise.all([
+                    client.get('/stats/dashboard'),
+                    client.get(`/tournaments/${tournamentId}`)
+                ]);
+
+                setStats(statsRes.data);
+                setIsDoubleRound(tournamentRes.data.isDoubleRound || false);
             } catch (error) {
-                console.error("Error fetching dashboard stats:", error);
+                console.error("Error fetching dashboard data:", error);
                 setStats(prev => ({ ...prev, currentMatchDay: 'Sin datos' }));
             }
         };
-        fetchStats();
-    }, []);
+        fetchData();
+    }, [tournamentId]);
 
     const handleLogout = () => {
         logout();
         navigate('/admin');
+    };
+
+    const handleConfirmSwitch = async () => {
+        try {
+            await client.put(`/tournaments/${tournamentId}/settings`, { isDoubleRound: true });
+            setIsDoubleRound(true);
+            setIsConfirmModalOpen(false);
+            // Optional: Trigger full refresh if stats might change (e.g. reactivated teams)
+            // window.location.reload(); or re-fetch stats
+        } catch (error) {
+            console.error("Error updating tournament settings:", error);
+            alert("Error al activar la segunda vuelta.");
+        }
     };
 
     const actions = [
@@ -85,13 +114,39 @@ const AdminDashboard = () => {
         <div className="min-h-screen w-full p-4 pb-20 md:p-8">
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4 bg-[#0f172a]/80 backdrop-blur-xl p-3 pr-8 rounded-full border border-white/10 shadow-lg">
-                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                        <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                    <div className="flex items-center gap-4 bg-[#0f172a]/80 backdrop-blur-xl p-3 pr-8 rounded-full border border-white/10 shadow-lg">
+                        <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
+                            <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-white leading-none">Panel de Control</h1>
+                            <span className="text-blue-300 text-xs font-medium uppercase tracking-wider">Administrador</span>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-black text-white leading-none">Panel de Control</h1>
-                        <span className="text-blue-300 text-xs font-medium uppercase tracking-wider">Administrador</span>
+
+                    {/* Tournament Selector */}
+                    <div className="relative group">
+                        <div className="flex items-center gap-3 bg-[#1e293b]/90 backdrop-blur-xl p-3 px-5 rounded-2xl border border-blue-500/30 shadow-lg text-white transition-all hover:border-blue-400/50">
+                            <Trophy size={18} className="text-yellow-400" />
+                            <div className="relative">
+                                <select
+                                    value={tournamentId}
+                                    onChange={(e) => setTournamentId(Number(e.target.value))}
+                                    className="bg-transparent border-none outline-none text-sm font-bold appearance-none cursor-pointer pr-6 min-w-[180px] text-white focus:ring-0"
+                                >
+                                    {tournaments.map(t => (
+                                        <option key={t.id} value={t.id} className="bg-[#0f172a] text-white py-2">
+                                            {t.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
+                            <div className="text-[10px] font-bold bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-500/20">
+                                {tournaments.find(t => t.id === tournamentId)?.season || 'N/A'}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -162,7 +217,61 @@ const AdminDashboard = () => {
                     </button>
                 ))}
 
+                {/* Settings Card */}
+                <div className="group relative flex flex-col items-start text-left bg-[#0f172a]/80 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-lg hover:border-blue-400/30 transition-all duration-300">
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-600 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-white mb-4 shadow-lg">
+                        <Swords size={24} />
+                    </div>
+
+                    <h3 className="text-lg font-bold text-white mb-1">Configuración</h3>
+                    <p className="text-gray-400 text-sm leading-snug mb-4">
+                        Ajustes generales del torneo
+                    </p>
+
+                    <div className="mt-auto w-full">
+                        <div className="flex items-center justify-between">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${isDoubleRound ? 'text-emerald-400' : 'text-blue-200'}`}>
+                                {isDoubleRound ? 'Activo (Ida y Vuelta)' : 'Solo Ida'}
+                            </span>
+                            <button
+                                disabled={isDoubleRound} // One-Way Lock
+                                onClick={() => setIsConfirmModalOpen(true)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isDoubleRound ? 'bg-emerald-500 cursor-not-allowed opacity-80' : 'bg-gray-600 hover:bg-gray-500'}`}
+                                title={isDoubleRound ? "Modo activado permanentemente" : "Activar segunda vuelta"}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDoubleRound ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            {/* Confirmation Modal */}
+            {isConfirmModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsConfirmModalOpen(false)}></div>
+                    <div className="relative bg-[#0f172a] border border-emerald-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                            <Swords className="text-emerald-400" size={32} />
+                        </div>
+                        <h2 className="text-xl font-black text-white mb-2">¿Activar Ida y Vuelta?</h2>
+                        <div className="text-gray-300 text-sm mb-6 text-left bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                            <p className="font-bold text-white">⚠️ Esta acción es irreversible.</p>
+                            <p>• El torneo se extenderá para jugar la revancha.</p>
+                            <p>• Todos los equipos <span className="text-yellow-400">eliminados deportivamente</span> serán reactivados automáticamente.</p>
+                            <p className="text-xs text-gray-500 mt-2">* Equipos dados de baja administrativa permanecerán baneados.</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={() => setIsConfirmModalOpen(false)} className="flex-1 py-3 rounded-xl border border-white/10 text-white hover:bg-white/5 font-bold text-sm">Cancelar</button>
+                            <button onClick={handleConfirmSwitch} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-900/30 transition-all active:scale-95">
+                                Sí, Activar y Reactivar Equipos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

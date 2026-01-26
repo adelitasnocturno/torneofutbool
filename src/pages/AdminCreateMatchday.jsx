@@ -7,7 +7,8 @@ import {
     Calendar,
     Save,
     AlertCircle,
-    CheckCircle
+    CheckCircle,
+    Trophy
 } from 'lucide-react';
 
 import client from '../api/client';
@@ -20,12 +21,45 @@ const AdminCreateMatchday = () => {
     const [formData, setFormData] = useState({
         startDate: '',
         endDate: '',
-        label: ''
+        label: '',
+        type: 'REGULAR'
     });
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [existingMatchdays, setExistingMatchdays] = useState([]);
+
+    // Fetch existing matchdays on load
+    React.useEffect(() => {
+        const fetchMatchdays = async () => {
+            if (!tournamentId) return;
+            try {
+                const response = await client.get(`/tournaments/${tournamentId}/matchdays`);
+                setExistingMatchdays(response.data);
+            } catch (err) {
+                console.error("Error fetching matchdays for validation:", err);
+            }
+        };
+        fetchMatchdays();
+    }, [tournamentId]);
+
+    const checkOverlap = (start, end) => {
+        if (!start || !end) return null;
+        const newStart = new Date(start);
+        const newEnd = new Date(end);
+
+        for (const md of existingMatchdays) {
+            const existingStart = new Date(md.startDate);
+            const existingEnd = new Date(md.endDate);
+
+            // Check intersection: (StartA <= EndB) and (EndA >= StartB)
+            if (newStart <= existingEnd && newEnd >= existingStart) {
+                return `La fecha choca con "${md.label}" (${md.startDate} - ${md.endDate})`;
+            }
+        }
+        return null;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -40,12 +74,21 @@ const AdminCreateMatchday = () => {
             return;
         }
 
+        // Validation: Overlap
+        const overlapError = checkOverlap(formData.startDate, formData.endDate);
+        if (overlapError) {
+            setError(`⚠️ ${overlapError}`);
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             await client.post('/matchdays', {
                 tournament: { id: tournamentId },
                 startDate: formData.startDate,
                 endDate: formData.endDate,
-                label: formData.label
+                label: formData.label,
+                type: formData.type
             });
 
             setSuccess(true);
@@ -55,10 +98,7 @@ const AdminCreateMatchday = () => {
 
         } catch (err) {
             console.error("Error creating matchday:", err);
-            // Check for specific error status if backend provides it, otherwise generic
             if (err.response && (err.response.status === 409 || err.response.status === 500)) {
-                // Assuming 500/409 could indicate duplicate based on the UniqueConstraint
-                // Ideally backend returns specific message, but we can infer duplicate date
                 setError('Error: Es probable que ya exista una jornada con este nombre.');
             } else {
                 setError('Hubo un error al crear la jornada. Inténtalo de nuevo.');
@@ -123,6 +163,31 @@ const AdminCreateMatchday = () => {
                                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                                     className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Type Selector */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-blue-200 uppercase tracking-wide flex items-center gap-2">
+                                <Trophy size={14} /> Tipo de Jornada
+                            </label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'REGULAR' })}
+                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${formData.type === 'REGULAR' ? 'bg-blue-600 border-blue-400 shadow-lg shadow-blue-900/50' : 'bg-[#1e293b] border-white/10 hover:bg-white/5'}`}
+                                >
+                                    <span className="font-bold text-white">Liga Regular</span>
+                                    <span className="text-xs text-blue-200/60">Puntos y Tabla</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, type: 'CUP' })}
+                                    className={`p-4 rounded-xl border flex flex-col items-center gap-2 transition-all ${formData.type === 'CUP' ? 'bg-amber-600 border-amber-400 shadow-lg shadow-amber-900/50' : 'bg-[#1e293b] border-white/10 hover:bg-white/5'}`}
+                                >
+                                    <span className="font-bold text-white">Copa</span>
+                                    <span className="text-xs text-amber-200/60">Eliminatoria</span>
+                                </button>
                             </div>
                         </div>
 
