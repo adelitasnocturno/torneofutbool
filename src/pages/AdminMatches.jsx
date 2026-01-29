@@ -15,7 +15,8 @@ import {
     AlertCircle,
     Shield,
     Trophy,
-    Dices
+    Dices,
+    CalendarClock
 } from 'lucide-react';
 import client from '../api/client';
 import { useTournament } from '../context/TournamentContext';
@@ -64,13 +65,25 @@ const AdminMatches = () => {
         fetchInitialData();
     }, [tournamentId]);
 
-    // Sync selected matchday with available matchdays
+    // Default to Current Matchday based on Date (or Last created as fallback)
     useEffect(() => {
         if (matchdays.length > 0 && !selectedMatchday) {
-            // Default to the last one or first one? Usually context handles "current", 
-            // but strictly for this admin view, let's pick the last created one (last id) or first.
-            // Let's pick the first one for now as per previous logic
-            setSelectedMatchday(matchdays[0].id);
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+            const current = matchdays.find(d => {
+                if (!d.startDate || !d.endDate) return false;
+                return today >= d.startDate && today <= d.endDate;
+            });
+
+            if (current) {
+                setSelectedMatchday(current.id);
+            } else {
+                // Determine if we should show first or last? 
+                // Usually "Next" matchday is better than "Last History".
+                // But let's stick to old behavior (Last) or maybe First?
+                // Let's stick to Last for now as that was previous behavior, logic says 'most recent'.
+                setSelectedMatchday(matchdays[matchdays.length - 1].id);
+            }
         }
     }, [matchdays, selectedMatchday]);
 
@@ -155,11 +168,22 @@ const AdminMatches = () => {
     // Filter Matches: (Backend already filters by ID, but we keep this for safety if structure matches, or just use matches directly)
     // The previous filter was failing because 'matchdayId' doesn't exist on the response (it has nested matchDay object).
     // Start using 'matches' directly since API guarantees they belong to selectedMatchday.
-    const filteredMatches = matches;
+    // Filter out POSTPONED matches that have no scheduled time (they shouldn't be in the schedule view)
+    const visibleMatches = matches.filter(m => !(m.status === 'POSTPONED' && !m.scheduledTime));
+
+    const sortedMatches = [...visibleMatches].sort((a, b) => {
+        // Sort by date first
+        if (a.date && b.date && a.date !== b.date) {
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+        }
+        // Then by time
+        if (a.scheduledTime && b.scheduledTime && a.scheduledTime !== b.scheduledTime) {
+            return a.scheduledTime.localeCompare(b.scheduledTime);
+        }
+        return 0;
+    });
 
 
-
-    // Handlers
     // Handlers
     const handleOpenModal = (match = null) => {
         setError('');
@@ -374,6 +398,9 @@ const AdminMatches = () => {
                                 return;
                             }
 
+                            // Lock Logic: Strict
+                            const isRegenerationLocked = matches.some(m => m.status !== 'SCHEDULED' || m.homeScore > 0 || m.awayScore > 0);
+
                             // 2.5 Logistics Check (Only if Generating Fresh, not Regenerating which ignores slots mostly or re-checks)
                             // Logic: If odd, (N-1)/2. If even, N/2. Both are floor(N/2).
                             const requiredMatches = Math.floor(eligibleTeams.length / 2);
@@ -393,6 +420,16 @@ const AdminMatches = () => {
 
                             // 3. REGENERATE FLOW
                             if (matches.length > 0) {
+                                if (isRegenerationLocked) {
+                                    setFeedbackModal({
+                                        isOpen: true,
+                                        title: 'Sorteo Bloqueado',
+                                        message: 'No puedes regenerar esta jornada porque ya tiene partidos iniciados, jugados o con goles registrados. \n\nPara volver a sortear, debes reiniciar manualmente los partidos a estado PENDIENTE y sin goles.',
+                                        type: 'error'
+                                    });
+                                    return;
+                                }
+
                                 setIsRegenerateModalOpen(true);
                                 return;
                             }
@@ -428,13 +465,12 @@ const AdminMatches = () => {
                         }}
                         className={`w-full md:w-auto text-white font-bold py-2 px-4 rounded-xl shadow-lg border border-white/10 flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap 
                             ${matches.length > 0
-                                ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500' // Orange
-                                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'} // Purple
+                                ? (matches.some(m => m.status !== 'SCHEDULED' || m.homeScore > 0 || m.awayScore > 0) ? 'bg-gray-600 opacity-50 cursor-not-allowed' : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500')
+                                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'} 
                             ${(matchdays.length === 0 || teams.length < 2) ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={matches.length > 0 ? "Regenerar sorteo" : "Generar partidos"}
                     >
-                        <Dices size={18} />
-                        <span className="hidden md:inline">{matches.length > 0 ? `Regenerar Sorteo (${matches.length})` : `Generar (${matches.length})`}</span>
+                        {matches.length > 0 && matches.some(m => m.status !== 'SCHEDULED' || m.homeScore > 0 || m.awayScore > 0) ? <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div><span>Bloqueado</span></div> : <><Dices size={18} /><span className="hidden md:inline">{matches.length > 0 ? `Regenerar Sorteo (${matches.length})` : `Generar (${matches.length})`}</span></>}
                     </button>
 
                     {/* Add Match Button */}
@@ -509,13 +545,13 @@ const AdminMatches = () => {
                 )
             }
             <div className="max-w-4xl mx-auto flex flex-col gap-4">
-                {filteredMatches.length === 0 ? (
+                {sortedMatches.length === 0 ? (
                     <div className="bg-[#0f172a]/40 border border-white/5 rounded-2xl p-8 text-center">
                         <Swords className="text-gray-600 mx-auto mb-3" size={48} />
                         <p className="text-gray-400">No hay partidos programados para esta jornada.</p>
                     </div>
                 ) : (
-                    filteredMatches.map(match => (
+                    sortedMatches.map(match => (
                         <div
                             key={match.id}
                             className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-6 shadow-lg hover:border-blue-500/30 transition-all group"
@@ -572,13 +608,9 @@ const AdminMatches = () => {
                                     >
                                         <Trophy size={18} />
                                     </button>
-                                    <button
-                                        onClick={() => handleOpenModal(match)}
-                                        className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors"
-                                        title="Editar"
-                                    >
-                                        <Pencil size={18} />
-                                    </button>
+
+
+
                                     <button
                                         onClick={() => handleDeleteClick(match)}
                                         className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"

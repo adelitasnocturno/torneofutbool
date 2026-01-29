@@ -32,6 +32,9 @@ const AdminPermissions = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // Repesca Modal State
+    const [repescaData, setRepescaData] = useState({ isOpen: false, freedSlot: null, candidates: [] });
+
     useEffect(() => {
         if (tournamentId) {
             fetchInitialData();
@@ -74,18 +77,48 @@ const AdminPermissions = () => {
         }
 
         try {
-            await client.post('/permissions', {
+            const response = await client.post('/permissions', {
                 teamId: formData.teamId,
                 matchDayId: formData.matchDayId,
                 reason: formData.reason
             });
+
+            // Handle Response
+            const { permission, freedSlot, candidates } = response.data;
+
             setSuccess('Permiso registrado correctamente.');
             setFormData({ teamId: '', matchDayId: '', reason: '' });
             fetchPermissions(); // Refresh list
-            fetchInitialData(); // Refresh teams to update permission counters
+            fetchInitialData(); // Refresh teams
+
+            // Check for Repesca Candidates
+            if (freedSlot && candidates && candidates.length > 0) {
+                setRepescaData({
+                    isOpen: true,
+                    freedSlot,
+                    candidates,
+                    permissionId: permission.id
+                });
+            }
+
         } catch (err) {
             console.error("Error creating permission:", err);
             setError(err.response?.data?.error || 'Error al crear el permiso.');
+        }
+    };
+
+    // Handle Repesca Selection
+    const handleRepescaConfirm = async (matchToSchedule) => {
+        try {
+            await client.post(`/permissions/${repescaData.permissionId}/assign-replacement`, {
+                matchId: matchToSchedule.id
+            });
+            setSuccess("¡Partido de Repesca asignado con éxito!");
+            setRepescaData({ isOpen: false, freedSlot: null, candidates: [] });
+            fetchInitialData(); // Refresh data to reflect changes
+        } catch (err) {
+            console.error("Error scheduling repesca:", err);
+            setError("Error al asignar partido de repesca.");
         }
     };
 
@@ -99,12 +132,13 @@ const AdminPermissions = () => {
         if (!permissionToDelete) return;
         try {
             await client.delete(`/permissions/${permissionToDelete.id}`);
+            setSuccess('Permiso revocado correctamente.');
             fetchPermissions();
             fetchInitialData(); // Refresh teams
             setPermissionToDelete(null);
         } catch (err) {
             console.error("Error deleting permission:", err);
-            alert('Error al eliminar el permiso.');
+            setError('Error al eliminar el permiso.');
             setPermissionToDelete(null);
         }
     };
@@ -280,10 +314,59 @@ const AdminPermissions = () => {
                         </div>
                     </div>
                 </div>
-            )
-            }
-        </div >
+            )}
+
+            {/* Repesca Suggestion Modal */}
+            {repescaData.isOpen && repescaData.freedSlot && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setRepescaData({ ...repescaData, isOpen: false })}></div>
+                    <div className="relative bg-[#0f172a] border border-emerald-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                            <Calendar className="text-emerald-500" size={32} />
+                        </div>
+                        <h2 className="text-xl font-black text-white text-center mb-1">¡Horario Liberado!</h2>
+                        <p className="text-gray-400 text-xs text-center mb-6 uppercase tracking-wider">
+                            {repescaData.freedSlot.time} - {repescaData.freedSlot.venue} ({repescaData.freedSlot.date})
+                        </p>
+
+                        <div className="text-white text-sm mb-4">
+                            <p className="mb-2">Se ha pospuesto el partido original. ¿Deseas usar este espacio libre para agendar un partido pendiente (Repesca)?</p>
+                        </div>
+
+                        <div className="max-h-48 overflow-y-auto space-y-2 pr-2 mb-6 custom-scrollbar">
+                            {repescaData.candidates.map(candidate => (
+                                <button
+                                    key={candidate.id}
+                                    onClick={() => handleRepescaConfirm(candidate)}
+                                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-3 flex items-center justify-between gap-3 text-left transition-colors group"
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-white text-sm">
+                                            {candidate.homeTeam.name} vs {candidate.awayTeam.name}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                            Jornada {candidate.matchDay ? candidate.matchDay.number : '?'}
+                                        </span>
+                                    </div>
+                                    <div className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs uppercase">
+                                        Asignar
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => setRepescaData({ isOpen: false, freedSlot: null, candidates: [] })}
+                            className="w-full py-3 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm transition-colors"
+                        >
+                            No, dejar horario libre
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 
 export default AdminPermissions;
+

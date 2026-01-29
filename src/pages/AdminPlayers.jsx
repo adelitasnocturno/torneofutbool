@@ -11,9 +11,12 @@ import {
     X,
     CheckCircle,
     AlertTriangle,
-    Shirt
+    Shirt,
+    Printer,
+    FileText
 } from 'lucide-react';
 import client from '../api/client';
+import CredentialsTemplate from '../components/CredentialsTemplate';
 
 const AdminPlayers = () => {
     const navigate = useNavigate();
@@ -38,6 +41,9 @@ const AdminPlayers = () => {
     // Error Modal State
     const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+
+    // Credentials Mode
+    const [showCredentials, setShowCredentials] = useState(false);
 
     const positions = ['Portero', 'Defensa', 'Medio', 'Delantero'];
 
@@ -203,6 +209,15 @@ const AdminPlayers = () => {
                             className="w-full bg-[#0f172a]/60 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-blue-400 transition-colors"
                         />
                     </div>
+
+                    {/* Credentials Button */}
+                    <button
+                        onClick={() => setShowCredentials(true)}
+                        className="bg-[#1e293b] hover:bg-[#334155] text-blue-300 font-bold py-2 px-4 rounded-xl shadow-lg border border-blue-500/20 flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        <Printer size={18} />
+                        <span className="hidden md:inline">Imprimir Credenciales</span>
+                    </button>
 
                     {/* Create Button */}
                     <button
@@ -406,6 +421,92 @@ const AdminPlayers = () => {
                             Entendido
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* Credentials Layout Overlay */}
+            {showCredentials && (
+                <div id="credentials-overlay" className="fixed inset-0 z-[100] bg-zinc-900 overflow-auto print:bg-white print:absolute print:inset-0 print:h-auto print:overflow-visible">
+                    {/* Toolbar (Hidden on Print) */}
+                    <div className="sticky top-0 z-50 bg-[#0f172a] border-b border-white/10 p-4 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+                        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+                            <h2 className="text-xl font-bold text-white">Vista de Impresión</h2>
+                            <span className="text-sm text-gray-400">Total: {players.length} credenciales</span>
+                        </div>
+                        <div className="flex gap-3 w-full md:w-auto justify-center">
+                            <button
+                                onClick={() => setShowCredentials(false)}
+                                className="px-4 py-2 rounded-lg bg-gray-800 text-white font-bold border border-white/10 hover:bg-gray-700 transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                onClick={() => window.print()}
+                                className="px-6 py-2 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-500 shadow-lg shadow-blue-900/40 transition-colors flex items-center gap-2"
+                            >
+                                <Printer size={18} />
+                                Imprimir
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Printable Grid */}
+                    <div className="p-4 md:p-8 print:p-0 flex flex-col items-center min-h-screen bg-zinc-900 print:bg-white">
+                        <div id="credentials-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 print:gap-2 print:grid-cols-2 w-full max-w-[21cm] print:w-full">
+                            {players.map(player => (
+                                <CredentialsTemplate
+                                    key={player.id}
+                                    player={player}
+                                    teamName={team ? team.name : 'Equipo'}
+                                    tournamentName="Torneo Nocturno" // Hardcoded for now, could be dynamic
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Print Styles */}
+                    <style>{`
+                        @media print {
+                            @page {
+                                margin: 0.5cm;
+                                size: letter;
+                            }
+                            body {
+                                background-color: white !important;
+                            }
+                            /* Hide everything by default */
+                            body * {
+                                visibility: hidden;
+                            }
+                            /* Show only our overlay and its children */
+                            #credentials-overlay, #credentials-overlay * {
+                                visibility: visible;
+                            }
+                            /* Position overlay to cover the page */
+                            #credentials-overlay {
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 100%;
+                                margin: 0;
+                                padding: 0;
+                                background-color: white !important;
+                                z-index: 9999;
+                            }
+                            /* Ensure grid displays correctly */
+                            #credentials-grid {
+                                display: grid !important;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 10px;
+                                width: 100%;
+                            }
+                            /* Force color printing */
+                            * {
+                                -webkit-print-color-adjust: exact !important;
+                                print-color-adjust: exact !important;
+                            }
+                        }
+                    `}</style>
                 </div>
             )}
         </div>

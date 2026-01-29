@@ -56,10 +56,21 @@ export const TournamentProvider = ({ children }) => {
             // 2. Determine "Current MatchDay"
             if (Array.isArray(days) && days.length > 0) {
                 const today = new Date().toLocaleDateString('en-CA');
-                const upcomingOrToday = days.find(d => d.date >= today);
-                if (upcomingOrToday) {
-                    setCurrentMatchDayId(upcomingOrToday.id);
+                // 1. Try to find the CURRENT active matchday (Today is inside range)
+                let target = days.find(d =>
+                    d.startDate && d.endDate &&
+                    today >= d.startDate && today <= d.endDate
+                );
+
+                // 2. If not found, try to find the NEXT upcoming one (Start date is in future)
+                if (!target) {
+                    target = days.find(d => d.startDate && d.startDate >= today);
+                }
+
+                if (target) {
+                    setCurrentMatchDayId(target.id);
                 } else {
+                    // 3. Fallback to the last one (history)
                     setCurrentMatchDayId(days[days.length - 1].id);
                 }
             } else {
