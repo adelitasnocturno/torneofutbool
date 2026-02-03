@@ -111,7 +111,7 @@ const AdminPlayers = () => {
                 nickname: formData.nickname,
                 shirtNumber: parseInt(formData.number),
                 position: formData.position,
-                team: { id: parseInt(id) },
+                teamId: parseInt(id),
                 isActive: true
             };
 
