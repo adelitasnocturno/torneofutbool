@@ -34,9 +34,10 @@ const ScorersCard = () => {
 
     const selectedPlayer = players.find(p => p.playerId === selectedId);
 
-    // Choose image based on ID (alternate) - Just a visual trick for now
-    // In real app maybe use player.playerPhotoUrl if available
-    const playerImage = selectedPlayer && selectedPlayer.playerId % 2 === 0 ? playerCutout2 : playerCutout;
+    // Choose image: Use uploaded photo if available, otherwise separate by ID for variety
+    const playerImage = selectedPlayer?.playerPhotoUrl
+        ? selectedPlayer.playerPhotoUrl
+        : (selectedPlayer && selectedPlayer.playerId % 2 === 0 ? playerCutout2 : playerCutout);
 
     if (loading) {
         return <div className="p-4 text-center text-white/50">Cargando goleadores...</div>;

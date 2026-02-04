@@ -79,11 +79,11 @@ const EquipoDetail = () => {
             <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 rounded-xl p-6 shadow-2xl">
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
                     <Users className="text-blue-300" />
-                    Jugadoras
+                    Jugadores
                 </h3>
 
                 {players.length === 0 ? (
-                    <div className="text-center text-gray-500 py-6">No hay jugadoras registradas aún.</div>
+                    <div className="text-center text-gray-500 py-6">No hay jugadores registrados aún.</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {players.map((player) => (
@@ -100,7 +100,7 @@ const EquipoDetail = () => {
                                         {player.fullName}
                                     </span>
                                     {/* Backend usually provides simplified roles or we use defaults */}
-                                    <span className="text-gray-400 text-xs">{player.nickname || 'Jugadora'}</span>
+                                    <span className="text-gray-400 text-xs">{player.nickname || 'Jugador'}</span>
                                 </div>
                                 <div className="ml-auto text-xl font-black text-white/10 font-mono group-hover:text-white/20 transition-colors">
                                     #{player.shirtNumber || '-'}
