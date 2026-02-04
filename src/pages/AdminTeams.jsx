@@ -89,7 +89,7 @@ const AdminTeams = () => {
                 const payload = {
                     name: formData.name,
                     tournament: { id: tournamentId }, // Required relationship
-                    // logoUrl: formData.logo // Handle file upload later if needed
+                    logoUrl: formData.logo
                 };
                 const response = await client.put(`/teams/${editingTeam.id}`, payload);
                 setTeams(teams.map(t => t.id === editingTeam.id ? response.data : t));
@@ -98,7 +98,8 @@ const AdminTeams = () => {
                 const payload = {
                     name: formData.name,
                     tournament: { id: tournamentId },
-                    active: true
+                    active: true,
+                    logoUrl: formData.logo
                 };
                 const response = await client.post('/teams', payload);
                 setTeams([...teams, response.data]);
@@ -161,14 +162,70 @@ const AdminTeams = () => {
         }
     };
 
-    // File Input Handler (Mock for now, would need FormData for real upload)
-    const handleFileChange = (e) => {
+    // File Input Handler (Real Upload)
+    const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+            try {
+                // Upload to backend
+                const res = await client.post('/upload', formDataUpload, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
 
-            // Implement file upload logic here (e.g., upload to S3/Cloudinary/Server and get URL)
+                console.log("Upload Response:", res.data);
+
+                // Construct URL
+                // Check if the backend returned a full URL or relative
+                // If relative, prepend base URL logic
+                const baseURL = client.defaults.baseURL.replace('/api', '');
+                const logoUrl = baseURL + res.data.url;
+
+                console.log("Base URL calculated:", baseURL);
+                console.log("Final Logo URL:", logoUrl);
+
+                setFormData(prev => ({ ...prev, logo: logoUrl }));
+            } catch (err) {
+                console.error("Error uploading logo:", err);
+                // alert("Error al subir el logo"); // Optional
+            }
         }
     };
+
+    // ... (rest of component)
+
+    // In handleSave:
+    // ...
+    // logoUrl: formData.logo 
+
+    // UI Replacement for Upload Box
+    <div className="space-y-2">
+        <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Logo (Escudo)</label>
+        <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer group relative overflow-hidden">
+            <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+            />
+
+            {formData.logo ? (
+                <div className="relative z-0">
+                    <img src={formData.logo} alt="Preview" className="w-24 h-24 object-contain mb-2" />
+                    <p className="text-xs text-blue-300 font-bold">Clic para cambiar</p>
+                </div>
+            ) : (
+                <>
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                        <Upload className="text-blue-400" size={20} />
+                    </div>
+                    <p className="text-sm text-gray-300 font-medium">Click para subir imagen</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG (Max 2MB)</p>
+                </>
+            )}
+        </div>
+    </div>
 
     return (
         <div className="min-h-screen w-full p-4 pb-20 md:p-8">
@@ -310,18 +367,28 @@ const AdminTeams = () => {
                             {/* Logo Upload */}
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Logo (Escudo)</label>
-                                <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer group relative">
+                                <div className="border-2 border-dashed border-white/10 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-white/5 transition-colors cursor-pointer group relative overflow-hidden">
                                     <input
                                         type="file"
                                         accept="image/*"
                                         onChange={handleFileChange}
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
                                     />
-                                    <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                        <Upload className="text-blue-400" size={20} />
-                                    </div>
-                                    <p className="text-sm text-gray-300 font-medium">Click para subir imagen</p>
-                                    <p className="text-xs text-gray-500 mt-1">PNG, JPG (Max 2MB)</p>
+
+                                    {formData.logo ? (
+                                        <div className="relative z-0 flex flex-col items-center">
+                                            <img src={formData.logo} alt="Preview" className="w-24 h-24 object-contain mb-2 rounded-lg shadow-lg" />
+                                            <p className="text-xs text-blue-300 font-bold">Clic para cambiar</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                                <Upload className="text-blue-400" size={20} />
+                                            </div>
+                                            <p className="text-sm text-gray-300 font-medium">Click para subir imagen</p>
+                                            <p className="text-xs text-gray-500 mt-1">PNG, JPG (Max 2MB)</p>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 

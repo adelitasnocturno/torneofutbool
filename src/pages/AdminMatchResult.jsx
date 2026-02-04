@@ -132,6 +132,7 @@ const AdminMatchResult = () => {
                 status: match.status,
                 homeScore: match.homeScore,
                 awayScore: match.awayScore,
+                date: match.date, // Include date to avoid wiping it
                 scheduledTime: match.scheduledTime,
                 venue: match.venue
             };

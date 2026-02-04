@@ -84,12 +84,11 @@ const Posiciones = () => {
                                     <th className="p-4 text-center">PP</th>
                                     <th className="p-4 text-center text-gray-400">GF</th>
                                     <th className="p-4 text-center text-gray-400">GC</th>
-                                    <th className="p-4 text-center text-gray-300">DG</th>
                                     <th className="p-4 text-center text-yellow-400 text-sm">PTS</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {standings.map((row) => (
+                                {standings.map((row, index) => (
                                     <tr
                                         key={row.teamId}
                                         onClick={() => navigate(`/equipo/${row.teamId}`)}
@@ -97,36 +96,56 @@ const Posiciones = () => {
                                     >
                                         {/* POS */}
                                         <td className="p-4 text-center">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getPosColor(row.position)}`}>
-                                                {row.position}
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${getPosColor(index + 1)}`}>
+                                                {index + 1}
                                             </div>
                                         </td>
 
                                         {/* EQUIPO */}
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 md:w-10 md:h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/10 shadow-sm group-hover:scale-110 transition-transform overflow-hidden">
-                                                    {/* Use Logo URL if available, else Shield */}
-                                                    {row.logoUrl ? (
-                                                        <img src={row.logoUrl} alt={row.teamName} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <Shield size={16} className="text-blue-300" />
+                                                <div className="relative">
+                                                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border shadow-sm group-hover:scale-110 transition-transform overflow-hidden relative z-10 
+                                                        ${index === 0 ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' :
+                                                            index === 1 ? 'border-gray-300 shadow-[0_0_10px_rgba(209,213,219,0.5)]' :
+                                                                index === 2 ? 'border-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.5)]' :
+                                                                    'border-white/10 bg-white/10'}`}>
+
+                                                        {/* Use Logo URL if available, else Shield */}
+                                                        {row.teamLogoUrl ? (
+                                                            <img src={row.teamLogoUrl} alt={row.teamName} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <Shield size={16} className="text-blue-300" />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Rank Icons */}
+                                                    {index === 0 && (
+                                                        <div className="absolute -top-2 -right-2 z-20 text-yellow-400 drop-shadow-md animate-bounce-slow">
+                                                            <Trophy size={16} fill="currentColor" />
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <span className="text-white font-bold text-sm md:text-base group-hover:text-yellow-200 transition-colors">
-                                                    {row.teamName}
-                                                </span>
+
+                                                <div className="flex flex-col">
+                                                    <span className={`font-bold text-sm md:text-base transition-colors ${index === 0 ? 'text-yellow-400' :
+                                                        index === 1 ? 'text-gray-300' :
+                                                            index === 2 ? 'text-amber-600' :
+                                                                'text-white group-hover:text-yellow-200'
+                                                        }`}>
+                                                        {row.teamName}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
 
                                         {/* STATS */}
-                                        <td className="p-4 text-center text-white font-medium">{row.played}</td>
+                                        <td className="p-4 text-center text-white font-medium">{row.matchesPlayed}</td>
                                         <td className="p-4 text-center text-green-400/80">{row.won}</td>
                                         <td className="p-4 text-center text-gray-400">{row.drawn}</td>
                                         <td className="p-4 text-center text-red-400/80">{row.lost}</td>
                                         <td className="p-4 text-center text-gray-500 text-xs hidden md:table-cell">{row.goalsFor}</td>
                                         <td className="p-4 text-center text-gray-500 text-xs hidden md:table-cell">{row.goalsAgainst}</td>
-                                        <td className="p-4 text-center text-white font-bold">{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</td>
                                         <td className="p-4 text-center">
                                             <span className="text-yellow-400 font-black text-lg drop-shadow-sm">{row.points}</span>
                                         </td>

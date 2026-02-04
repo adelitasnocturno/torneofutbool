@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, User, Shield } from 'lucide-react';
 import client from '../api/client';
+import { useTournament } from '../context/TournamentContext';
 import playerCutout from '../assets/player_cutout.png';
 import playerCutout2 from '../assets/player_cutout_2.png';
 
 const ScorersCard = () => {
+    const { tournamentId } = useTournament();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedId, setSelectedId] = useState(null);
 
     useEffect(() => {
         const fetchScorers = async () => {
+            if (!tournamentId) return;
             try {
-                const response = await client.get('/stats/scorers');
+                const response = await client.get(`/tournaments/${tournamentId}/scorers`);
                 // Take top 5
                 const data = response.data;
                 setPlayers(data.slice(0, 5));
@@ -27,7 +30,7 @@ const ScorersCard = () => {
         };
 
         fetchScorers();
-    }, []);
+    }, [tournamentId]);
 
     const selectedPlayer = players.find(p => p.playerId === selectedId);
 

@@ -32,7 +32,7 @@ const AdminPlayers = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState(null);
-    const [formData, setFormData] = useState({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
+    const [formData, setFormData] = useState({ name: '', nickname: '', number: '', position: 'Delantero', photo: null, birthDate: '' });
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -84,12 +84,13 @@ const AdminPlayers = () => {
                 name: player.fullName,
                 nickname: player.nickname || '',
                 number: player.shirtNumber,
-                position: player.position || 'Delantero', // If backend doesn't have position yet, default
-                photo: player.photoUrl
+                position: player.position || 'Delantero',
+                photo: player.photoUrl,
+                birthDate: player.birthDate || ''
             });
         } else {
             setEditingPlayer(null);
-            setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
+            setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null, birthDate: '' });
         }
         setIsModalOpen(true);
     };
@@ -97,7 +98,7 @@ const AdminPlayers = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingPlayer(null);
-        setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null });
+        setFormData({ name: '', nickname: '', number: '', position: 'Delantero', photo: null, birthDate: '' });
         setError(null);
     };
 
@@ -112,7 +113,9 @@ const AdminPlayers = () => {
                 shirtNumber: parseInt(formData.number),
                 position: formData.position,
                 teamId: parseInt(id),
-                isActive: true
+                isActive: true,
+                birthDate: formData.birthDate || null,
+                photoUrl: formData.photo
             };
 
             if (editingPlayer) {
@@ -323,6 +326,17 @@ const AdminPlayers = () => {
                                 />
                             </div>
 
+                            {/* Birth Date */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-blue-200 uppercase tracking-wide">Fecha de Nacimiento</label>
+                                <input
+                                    type="date"
+                                    value={formData.birthDate}
+                                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                                    className="w-full bg-[#1e293b] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors [color-scheme:dark]"
+                                />
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Number */}
                                 <div className="space-y-2">
@@ -361,11 +375,48 @@ const AdminPlayers = () => {
                                         type="file"
                                         accept="image/*"
                                         className="absolute inset-0 opacity-0 cursor-pointer"
+                                        onChange={async (e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                const formDataUpload = new FormData();
+                                                formDataUpload.append('file', file);
+                                                try {
+                                                    // Upload First Strategy
+                                                    const res = await client.post('/upload', formDataUpload, {
+                                                        headers: { 'Content-Type': 'multipart/form-data' }
+                                                    });
+                                                    // Backend returns { url: "/uploads/filename.jpg" }
+                                                    // We append the base URL if needed, or if backend returns relative, we save relative.
+                                                    // Usually better to save relative path in DB.
+                                                    // But for display, we might need full URL if client.js baseURL is different.
+                                                    // Let's assume the component handles the display if it's absolute URL, 
+                                                    // or we construct it.
+                                                    // Ideally, save the relative path "/uploads/..." and ensuring <img src={baseURL + photoUrl} /> or simlar.
+                                                    // But wait, the backend usually returns just "/uploads/uuid.jpg".
+                                                    // If we are developing locally, <img src="/uploads/..." /> works if frontend proxy or same domain.
+                                                    // If separated, we need full URL.
+                                                    // For now, let's prepend the API_URL if it's not absolute.
+                                                    // Actually, let's just save what backend gives us.
+                                                    const photoUrl = client.defaults.baseURL.replace('/api', '') + res.data.url;
+
+                                                    setFormData(prev => ({ ...prev, photo: photoUrl }));
+                                                } catch (err) {
+                                                    console.error("Error uploading photo:", err);
+                                                    alert("Error al subir la imagen");
+                                                }
+                                            }
+                                        }}
                                     />
-                                    <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                        <Upload className="text-blue-400" size={18} />
-                                    </div>
-                                    <p className="text-xs text-gray-400">Subir foto (Opcional)</p>
+                                    {formData.photo ? (
+                                        <div className="relative w-24 h-24 rounded-full overflow-hidden mb-2 border-2 border-blue-500">
+                                            <img src={formData.photo} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                            <Upload className="text-blue-400" size={18} />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-gray-400">{formData.photo ? 'Cambiar foto' : 'Subir foto (Opcional)'}</p>
                                 </div>
                             </div>
 

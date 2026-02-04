@@ -40,7 +40,7 @@ const AdminDashboard = () => {
             try {
                 // Parallel fetch for speed
                 const [statsRes, tournamentRes] = await Promise.all([
-                    client.get('/stats/dashboard'),
+                    client.get(`/tournaments/${tournamentId}/dashboard-stats`),
                     client.get(`/tournaments/${tournamentId}`)
                 ]);
 

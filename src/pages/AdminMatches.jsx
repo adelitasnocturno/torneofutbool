@@ -585,9 +585,22 @@ const AdminMatches = () => {
 
                                 {/* Details */}
                                 <div className="w-full md:w-auto flex flex-wrap md:flex-col items-center md:items-end justify-center gap-2 md:gap-1 text-xs md:text-sm text-gray-400 mt-4 md:mt-0">
+                                    {/* Status Badge */}
+                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border font-bold text-[10px] uppercase tracking-wider
+                                        ${match.status === 'IN_PROGRESS' ? 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse' :
+                                            match.status === 'FINAL' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                                match.status === 'POSTPONED' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                                                    'bg-blue-500/10 text-blue-300 border-blue-500/20'}`}>
+                                        {match.status === 'IN_PROGRESS' ? '● En Vivo' :
+                                            match.status === 'FINAL' ? 'Finalizado' :
+                                                match.status === 'POSTPONED' ? 'Pospuesto' :
+                                                    match.status === 'CANCELLED' ? 'Cancelado' :
+                                                        'Programado'}
+                                    </div>
+
                                     <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
                                         <Calendar size={12} className="text-blue-400" />
-                                        <span>{match.date || 'Pendiente'}</span>
+                                        <span>{match.date || (match.status === 'SCHEDULED' ? 'Fecha Pendiente' : 'Sin Fecha')}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/5">
                                         <Clock size={12} className="text-blue-400" />
@@ -624,6 +637,51 @@ const AdminMatches = () => {
                     ))
                 )}
             </div>
+
+            {/* Resting Teams (Bye) Section */}
+            {(() => {
+                // Calculate resting teams
+                if (!matches || !teams) return null;
+
+                // Get all IDs of teams playing in this matchday
+                const playingTeamIds = new Set();
+                matches.forEach(m => {
+                    if (m.homeTeam) playingTeamIds.add(m.homeTeam.id);
+                    if (m.awayTeam) playingTeamIds.add(m.awayTeam.id);
+                });
+
+                // Filter teams that are ACTIVE but NOT playing
+                const restingTeams = teams.filter(t =>
+                    t.isActive &&
+                    !t.isBanned &&
+                    !playingTeamIds.has(t.id)
+                );
+
+                if (restingTeams.length === 0) return null;
+
+                return (
+                    <div className="max-w-4xl mx-auto mt-8">
+                        <div className="flex items-center gap-3 mb-4 opacity-70">
+                            <div className="h-[1px] flex-1 bg-white/10"></div>
+                            <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Equipos en Descanso (Bye)</span>
+                            <div className="h-[1px] flex-1 bg-white/10"></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {restingTeams.map(team => (
+                                <div key={team.id} className="bg-[#0f172a]/60 border border-white/5 rounded-xl p-4 flex items-center gap-3 opacity-75 hover:opacity-100 transition-opacity">
+                                    <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center border border-white/10 shrink-0">
+                                        <Shield size={16} className="text-gray-500" />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-300 truncate" title={team.name}>
+                                        {team.name}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Create/Edit Modal */}
             {

@@ -28,7 +28,9 @@ const Jornadas = () => {
                     const today = new Date();
                     const localToday = today.toLocaleDateString('en-CA'); // Returns "YYYY-MM-DD" in local time
 
-                    const isPast = day.date < localToday;
+                    // Use strict endDate if present, or fallback
+                    const compareDate = day.endDate || day.date;
+                    const isPast = compareDate < localToday;
 
                     return {
                         ...day,
